@@ -2,6 +2,7 @@ import torch
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
+import logging
 
 def get_data(dataset_name='mnist',batch_s=64):
     """ 
@@ -52,4 +53,11 @@ def get_data(dataset_name='mnist',batch_s=64):
 
 def conv_size(input_s, kernel_s, stride_s, padding_s, dilation_s):
     """ Method to compute output width size after a conv or maxpool2d layer (same computation for the two)"""
-    return int((input_s + 2 * padding_s - dilation_s + (kernel_s-1)-1)/stride_s +1)
+    return int((input_s + 2 * padding_s - dilation_s * (kernel_s-1)-1)/stride_s +1)
+
+def setup_logger(seed=None):
+    """ set useful logger set-up"""
+    logging.basicConfig(format='%(asctime)s %(message)s', encoding='utf-8', level=logging.INFO)
+    logging.debug(f'Pytorch version: {torch.__version__}')
+    if seed is not None:
+        logging.info(f'Seed: {seed}')
