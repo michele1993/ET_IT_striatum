@@ -22,19 +22,24 @@ dataset_name= "mnist" #"cifar10"
 # Training variables
 epocs = 1
 batch_s = 64
+striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
+cortex_ln_rate = 1e-3
+striatal_ln_rate = 1e-3
 
 # Get data organised in batches 
 training_data, test_data, n_labels = get_data(dataset_name=dataset_name,batch_s=batch_s)
 
 # Initialise training loop
-trainingloop = TrainingLoop(training_data, test_data, n_labels, dev)
+trainingloop = TrainingLoop(training_data=training_data, test_data=test_data, n_labels=n_labels, striatum_training_delay=striatum_training_delay, 
+                            device=dev, cortex_ln_rate=cortex_ln_rate, striatal_ln_rate=striatal_ln_rate)
 
 for e in range(epocs):
     trainingloop.train(e)
 
-test_performance = trainingloop.test_performance()
-test_acc = np.round(sum(test_performance)/len(test_performance),decimals=2)
-logging.info(f"*** Test accuracy:  {test_acc*100}% ***")
+cortical_test_performance, striatal_test_performance  = trainingloop.test_performance()
+cortical_test_acc = np.round(sum(cortical_test_performance)/len(cortical_test_performance),decimals=2)
+striatal_test_acc = np.round(sum(striatal_test_performance)/len(striatal_test_performance),decimals=2)
+logging.info(f"*** | Cortical test accuracy:  {cortical_test_acc*100}% | Striatal test accuracy:  {striatal_test_acc*100}% ***")
 #t=0
 #for d,l in training_data:
 #    print(d.size())
