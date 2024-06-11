@@ -14,14 +14,14 @@ def get_data(dataset_name='mnist',batch_s=64):
 
     if dataset_name == 'mnist':
         training_data = datasets.MNIST(
-            root="data",
+            root="../data",
             train=True,
             download=True,
             transform=ToTensor()
         )
 
         test_data = datasets.MNIST(
-            root="data",
+            root="../data",
             train=False,
             download=True,
             transform=ToTensor()
