@@ -11,7 +11,6 @@ class Cortex_CNN(nn.Module):
 
         self.out_channels = out_channels
 
-
         # First CNN layer with Maxpooling
         self.conv1 = nn.Sequential(
             nn.Conv2d(
@@ -26,28 +25,16 @@ class Cortex_CNN(nn.Module):
             nn.MaxPool2d(kernel_size=2,stride=2)
         )
 
-        # Second CNN layer with Maxpooling
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(
-                in_channels=out_channels,
-                out_channels=out_channels,
-                kernel_size=kernel_size,
-                stride=stride_s,
-                padding=padding_s,
-                dilation=dilation_s
-            ),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2,stride=2)
-        )
 
         # Call all the conv & maxPool operations on an empty tensor to infer the output representation size after each conv block
         # NOTE: this is needed because each con2d and MaxPool2d operation shrinks the size of the image
-        self.cnnLayer1_size = self.conv1(torch.empty(1, in_channels, img_size, img_size)).size(-1)
-        self.cnnLayer2_size = self.conv2(torch.empty(1, out_channels, self.cnnLayer1_size, self.cnnLayer1_size)).size(-1)
+        self.cnnLayer_size = self.conv1(torch.empty(1, in_channels, img_size, img_size)).size(-1)
+        self.h_units = n_h_units
 
         # pass the output size of the conv block to a linear layer
         # need to multiply the final layer size by itself since images have both width and height (assuming width=height)
-        self.linear_1 = nn.Linear(self.cnnLayer2_size * self.cnnLayer2_size * self.out_channels, n_labels)
+        self.l1 = nn.Linear(self.cnnLayer_size * self.cnnLayer_size * self.out_channels, self.h_units)
+        self.output = nn.Linear(self.h_units, n_labels)
 
         # Define optimizer
         self.optimizer = opt.Adam(self.parameters(),ln_rate)
@@ -64,12 +51,14 @@ class Cortex_CNN(nn.Module):
                     
 
         h_1 = self.conv1(x)
-        h_2 = self.conv2(h_1)
+
+        h_2 = nn.functional.relu(self.l1(h_1.view(-1,self.cnnLayer_size * self.cnnLayer_size * self.out_channels)))
 
         # Need to reshape to feed to linear layer as vector
-        logits = self.linear_1(h_2.view(-1,self.cnnLayer2_size * self.cnnLayer2_size * self.out_channels))
+        logits = self.output(h_2)
 
-        return logits, h_1, h_2
+        # return last layer representation
+        return logits, h_1, h_2  
 
     def update(self, predictions, labels):
         """ update the newtork based on cross entropy loss """

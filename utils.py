@@ -61,3 +61,13 @@ def setup_logger(seed=None):
     logging.debug(f'Pytorch version: {torch.__version__}')
     if seed is not None:
         logging.info(f'Seed: {seed}')
+
+def cross_entropy(pred_probs, target_probs):
+    """ Compute the cross entropy between two distributions
+        Args:
+            pred_probs: probabilities of the prediction
+            target_probs: probabilities of target 
+    """
+
+    return -1*torch.sum(target_probs * torch.log(pred_probs),dim=-1)
+

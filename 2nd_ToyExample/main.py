@@ -1,11 +1,16 @@
 import torch
 import numpy as np
+from TrainingLoop import TrainingLoop
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import get_data
 from utils import setup_logger
-from TrainingLoop import TrainingLoop
 import logging
  
-
+## ---- Set seed for reproducibility purposes
+seed = 0
+torch.manual_seed(seed)
+np.random.seed(seed)
 
 # Select correct device
 if torch.cuda.is_available():
@@ -17,7 +22,7 @@ else:
 
 setup_logger()
 ## Experiment variables
-dataset_name= "mnist" #"cifar10" 
+dataset_name = "mnist" #"cifar10"
 
 # Training variables
 epocs = 1
@@ -36,10 +41,13 @@ trainingloop = TrainingLoop(training_data=training_data, test_data=test_data, n_
 for e in range(epocs):
     trainingloop.train(e)
 
-cortical_test_performance, striatal_test_performance  = trainingloop.test_performance()
+cortical_test_performance, striatal_test_class_performance, striatal_test_rwd_performance = trainingloop.test_performance()
 cortical_test_acc = np.round(sum(cortical_test_performance)/len(cortical_test_performance),decimals=2)
-striatal_test_acc = np.round(sum(striatal_test_performance)/len(striatal_test_performance),decimals=2)
-logging.info(f"*** | Cortical test accuracy:  {cortical_test_acc*100}% | Striatal test accuracy:  {striatal_test_acc*100}% ***")
+striatal_test_class_acc = np.round(sum(striatal_test_class_performance)/len(striatal_test_class_performance),decimals=2)
+
+striatal_test_rwd_acc = np.round(sum(striatal_test_rwd_performance)/len(striatal_test_rwd_performance),decimals=2)
+
+logging.info(f"*** | Cortical test accuracy:  {cortical_test_acc*100}% | Striatal test class accuracy:  {striatal_test_class_acc*100}% | Striatal test rwd accuracy:  {striatal_test_rwd_acc*100}% | ***")
 #t=0
 #for d,l in training_data:
 #    print(d.size())
