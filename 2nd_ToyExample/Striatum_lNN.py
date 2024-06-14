@@ -8,31 +8,40 @@ from utils import cross_entropy
 
 class Striatum_lNN(nn.Module):
 
-    def __init__(self, img_size,in_channels, cortical_input, output, ln_rate, h_size=116):
+    def __init__(self, input_s, cortical_input, output, ln_rate, ET_feedback, h_size, dev):
         """ Implement a Striatal network as a linear neural network, lNN, trying to predict the image labels from the images and cortical inputs """
 
         super().__init__()
 
-        self.img_overal_size = img_size*img_size*in_channels 
+        self.input_s = input_s
         self.cortical_input_s = cortical_input
+        self.output_s = output
+        self.ET_feedback = ET_feedback
+        self.dev = dev
 
         # Implement two separate striatal components, which receives different cortial inputs, but the same sensory input
-        self.l1 = nn.Linear(self.img_overal_size + self.cortical_input_s,h_size)
+        self.l1 = nn.Linear(self.input_s + self.cortical_input_s,h_size)
 
         self.l_class_output = nn.Linear(h_size, output) 
         self.l_rwd_output = nn.Linear(h_size, 1) 
 
         # Define optimizer
         self.optimizer = opt.Adam(self.parameters(),ln_rate)
-    
-    def forward(self, img, cortical_inpt):
+
+    def forward(self, x, cortical_inpt):
         """ Process the cortical inputs through the two separate striatal components, then unify the two to make a prediction"""
 
-        # Concatenate input image with 1st layer cortical reprs. , while reshaping in appropriate shape
-        x = torch.cat([img.view(-1,self.img_overal_size),cortical_inpt.view(-1,self.cortical_input_s)],dim=-1)
+        # Concatenate input with 1st layer cortical reprs. , while reshaping in appropriate shape
+        x = torch.cat([x.view(-1,self.input_s),cortical_inpt.view(-1,self.cortical_input_s)],dim=-1)
         h = self.l1(x)
 
-        class_logits = self.l_class_output(h)
+        ## Model ET feedback to striatum as shaping striatal representations to predict cortical outputs (i.e., classification logits)
+        if self.ET_feedback:
+            class_logits = self.l_class_output(h)
+        else:    
+            class_logits = torch.zeros((1,self.output_s)).to(self.dev)
+
+        ## .detach() to prevent rwds (dopamine) to shape striatal representations, but only readout to predict rewards
         rwd_logits = torch.sigmoid(self.l_rwd_output(h.detach()))
 
         return class_logits, rwd_logits

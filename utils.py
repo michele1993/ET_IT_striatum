@@ -1,8 +1,84 @@
 import torch
+import numpy as np
 from torchvision import datasets
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
 import logging
+#from sklearn.manifold import TSNE
+
+def tsne_plotting(data, n_labels):
+
+    # Apply t-SNE to reduce the data to 2D
+    #data_2d = TSNE(n_components=2).fit_transform(data)
+
+    # Plot the 2D representation of the data
+    plt.figure(figsize=(8, 8))
+    for i in range(n_labels):
+        plt.scatter(\
+            data_2d[labelsFull == i][:, 0],\
+            data_2d[labelsFull == i][:, 1],\
+            label=f"Class {i}")
+    plt.legend()
+    plt.title("2D representation of data using t-SNE")
+    plt.xlabel("Dimension 1")
+    plt.ylabel("Dimension 2")
+    plt.grid(True)
+    plt.show()
+
+def generate_20DGauss_data(n_training_samples, n_test_samples):
+    """
+    Generates synthetic 20-dimensional data
+    using a mixture of Gaussians.
+    """
+    # 20-dimensional means for the Gaussians
+    means = [
+        np.array([2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11]),
+        np.array([3, 3, 5, 5, 7, 7, 9, 9, 11, 11, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12]),
+        np.array([4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 5, 5, 7, 7, 9, 9, 11, 11, 13, 13]),
+        np.array([5, 5, 7, 7, 9, 9, 11, 11, 13, 13, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14]),
+        np.array([6, 6, 8, 8, 10, 10, 12, 12, 14, 14, 7, 7, 9, 9, 11, 11, 13, 13, 15, 15]),
+        np.array([2, 3, 5, 6, 8, 7, 9, 10, 12, 11, 4, 5, 7, 8, 10, 9, 11, 12, 14, 13]),
+        np.array([3, 2, 6, 5, 7, 8, 10, 9, 11, 12, 5, 4, 8, 7, 9, 10, 12, 11, 13, 14]),
+        np.array([4, 3, 7, 6, 8, 9, 11, 10, 12, 13, 6, 5, 9, 8, 10, 11, 13, 12, 14, 15]),
+    ]
+
+    # Diagonal covariances for simplicity
+    cov = np.diag([3.5]*20)
+
+    training_data = []
+    training_labels = []
+    test_data = []
+    test_labels = []
+    # Create all data one class at the time
+    for i, mean in enumerate(means):
+        training_samples_x_class = n_training_samples // len(means)
+        test_samples_x_class = n_test_samples // len(means)
+        #Generate test and training data together
+        x = np.random.multivariate_normal(mean, cov, training_samples_x_class+test_samples_x_class)
+        # Training data
+        x_training = x[:training_samples_x_class]
+        training_data.append(x_training)
+        training_labels.append(np.full((x_training.shape[0]), i))
+        # Test data
+        x_test = x[training_samples_x_class:]
+        test_data.append(x_test)
+        test_labels.append(np.full((x_test.shape[0]), i))
+
+    # Stack training data appropritately and convert to Tensor
+    training_data = np.vstack(training_data)
+    training_labels = np.hstack(training_labels)
+    #tsne_plotting(training_data,len(means))
+    training_data = torch.tensor(training_data, dtype=torch.float32)
+    training_labels = torch.tensor(training_labels, dtype=torch.float32)
+
+    # Stack test data appropritately and convert to Tensor
+    test_data = np.vstack(test_data)
+    test_labels = np.hstack(test_labels)
+    test_data = torch.tensor(test_data, dtype=torch.float32)
+    test_labels = torch.tensor(test_labels, dtype=torch.float32)
+
+    # return training and test data in format suitable for dataloader, plus n_labels
+    return list(zip(training_data, training_labels)), list(zip(test_data, test_labels)), len(means)
 
 def get_data(dataset_name='mnist',batch_s=64):
     """ 
@@ -26,6 +102,9 @@ def get_data(dataset_name='mnist',batch_s=64):
             download=True,
             transform=ToTensor()
         )
+
+        n_labels = len(training_data.classes)
+
     elif dataset_name == 'cifar10':
         training_data = datasets.CIFAR10(
             root='./data', 
@@ -40,12 +119,16 @@ def get_data(dataset_name='mnist',batch_s=64):
             download=True, 
             transform=ToTensor()
         )
+
+        n_labels = len(training_data.classes)
     
+    elif dataset_name == 'synthetic_data':
+        training_data, test_data, n_labels = generate_20DGauss_data(n_training_samples=800,n_test_samples=80)
+
     else:
         raise NotImplementedError(f" {dataset_name} is an unknown dataset")
 
     # Use DataLoader to get data organised in random batches
-    n_labels = len(training_data.classes)
     train_dataloader = DataLoader(training_data,batch_size=batch_s,shuffle=True)#, num_workers=2)
     test_dataloader = DataLoader(test_data,batch_size=batch_s,shuffle=True)#, num_workers=2)
 

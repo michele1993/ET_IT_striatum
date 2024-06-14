@@ -1,5 +1,5 @@
 import torch
-from Cortex_CNN import Cortex_CNN
+from Cortex_NN import Cortex_NN
 from Striatum_lNN import Striatum_lNN
 import logging
 
@@ -11,34 +11,35 @@ class TrainingLoop():
         test_data,
         n_labels,
         striatum_training_delay,
-        device,
-        cortex_ln_rate=1e-3,
-        striatal_ln_rate=1e-3
+        cortex_ln_rate,
+        cortex_h_state,
+        striatal_ln_rate,
+        striatal_h_state,
+        IT_feedback,
+        ET_feedback,
+        device
     ):
 
         self.training_data = training_data
         self.test_data = test_data
         self.n_labels = n_labels
         self.striatum_training_delay = striatum_training_delay
+        self.IT_feedback = IT_feedback
         self.dev = device
 
         # Extra n. of channels, width and n. labels for the specific dataset
         data_batch, _ = next(iter(self.training_data))
 
-        # Extract useful dimension sizes
-        n_img_channels = data_batch.size()[1] # e.g., grayscale=1, RBG=3
-        img_width_s = data_batch.size()[2]
+        # Extract input dimension size
+        batch_s = data_batch.size()[0]
+        input_s = data_batch.view(batch_s,-1).size()[1]
 
-        self.cortex = Cortex_CNN(in_channels=n_img_channels, img_size=img_width_s, n_labels=self.n_labels, ln_rate=cortex_ln_rate).to(self.dev)
+        self.cortex = Cortex_NN(input_s=input_s, n_labels=self.n_labels, ln_rate=cortex_ln_rate, n_h_units=cortex_h_state).to(self.dev)
 
-        ## Here can decide wheather to pass to the Striatum the early CNN repres or the later FF latent representation
-        cortical_reps_s = self.cortex.cnnLayer_size**2 * self.cortex.out_channels  
-        #cortical_reps_s = self.cortex.h_units
+        cortical_reps_s = self.cortex.h_units
+        self.striatum = Striatum_lNN(input_s=input_s, cortical_input=cortical_reps_s, output=self.n_labels, ln_rate=striatal_ln_rate,
+                                     ET_feedback=ET_feedback, h_size=striatal_h_state, dev=self.dev).to(self.dev)
 
-        self.striatum = Striatum_lNN(img_size=img_width_s, in_channels=n_img_channels, 
-                                     cortical_input=cortical_reps_s, output=self.n_labels,ln_rate=striatal_ln_rate).to(self.dev)
-                                     
-    
     def train(self, ep, t_print=100):
 
         train_cortex_loss = []
@@ -53,19 +54,24 @@ class TrainingLoop():
 
             ## -------- Train cortex -------------
             cortical_prediction, cortical_h1, cortical_h2 = self.cortex(d)
-            loss = self.cortex.update(cortical_prediction,l)
-            train_cortex_loss.append(loss.detach())
+            # Pre-train cortex and then stop updating it
+            if ep < self.striatum_training_delay:
+                loss = self.cortex.update(cortical_prediction,l)
+                train_cortex_loss.append(loss.detach())
             ## -----------------------------------
             t+=1
+
+            striatal_cortical_input = cortical_h1
         
             ## -------- Train Striatum -------------
             if ep >= self.striatum_training_delay:
-                # --- Try passing random (cortical) representations to the striatum
-                #cortical_h1 = torch.randn_like(cortical_h1)
-                # ----------
+                ## Pass a zero vector as cortical input to striatum to mimic 
+                ## blocked IT cells
+                if not self.IT_feedback:
+                    cortical_h1 = torch.zeros_like(striatal_cortical_input).to(self.dev)
 
-                # detach() gradient to prevent striatal gradient to change cortical predictions
-                strl_class, strl_rwd = self.striatum(d,cortical_h1.detach())
+                # Striatal predictions, the strl_class pred is for training only (i.e., trying to mimic cortical predictions)
+                strl_class, strl_rwd = self.striatum(d,striatal_cortical_input.detach()) # detach() gradient to prevent striatal gradient to change cortical predictions
 
                 # For simplicity rwd=1 for second half of classes and rwd=0 for the other half of classes
                 # resulting in a binary reward-based task
@@ -78,8 +84,11 @@ class TrainingLoop():
             ## -----------------------------------
 
             if t % t_print == 0:
-                cortex_loss = sum(train_cortex_loss)/len(train_cortex_loss)
-                striatal_loss = None
+                cortex_loss = None
+                if len(train_cortex_loss) !=0:
+                    cortex_loss = sum(train_cortex_loss)/len(train_cortex_loss)
+                striatal_class_loss = None
+                striatal_rwd_loss = None
                 if len(train_striatal_class_loss) !=0:
                     striatal_class_loss = sum(train_striatal_class_loss)/len(train_striatal_class_loss)
                     striatal_rwd_loss = sum(train_striatal_rwd_loss)/len(train_striatal_rwd_loss)
@@ -88,7 +97,7 @@ class TrainingLoop():
                 train_striatal_class_loss = []
                 train_striatal_rwd_loss = []
 
-    def test_performance(self):
+    def test_performance(self, impairCortex_afterLearning):
 
         cortical_performance = []
         striatal_class_performance = []
@@ -105,11 +114,14 @@ class TrainingLoop():
                 cortical_performance.append(cortical_test_acc)
 
                 # Test performance for striatum
+                striatal_cortical_input = cortical_h1
 
-                # --- Try passing random (cortical) representations to the striatum
-                #cortical_h1 = torch.randn_like(cortical_h1)
+                # Pass a zero vector as cortical input to striatum to mimic 
+                ## blocked IT cells
+                if not self.IT_feedback or impairCortex_afterLearning: # since ET only needed for learning, only need to impair IT to mimic cortex damage after learning
+                    cortical_h1 = torch.zeros_like(striatal_cortical_input).to(self.dev)
                 # ----------
-                striatal_class_predictions, striatal_rwd_prediction = self.striatum(d,cortical_h1.detach())
+                striatal_class_predictions, striatal_rwd_prediction = self.striatum(d,striatal_cortical_input.detach())
 
                 ## ------ Striatum classif test performance ----------
                 striatal_predicted_labels = torch.argmax(striatal_class_predictions,dim=-1)

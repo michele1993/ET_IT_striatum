@@ -21,13 +21,19 @@ else:
     dev='cpu'
 
 setup_logger()
+
 ## Experiment variables
-dataset_name = "mnist" #"cifar10"
+dataset_name = "mnist"#"synthetic_data" #mnist" #"cifar10"
+ET_feedback = True
+IT_feedback = False
+cortex_h_state = 256 # model cortex as a large (powerful) NN
+striatal_h_state = 116 # model striatum as a small (linear) NN
+impairCortex_afterLearning = False # At the moment assessed on test data
 
 # Training variables
-epocs = 1
+epocs = 2
 batch_s = 64
-striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
+striatum_training_delay = 1 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 cortex_ln_rate = 1e-3
 striatal_ln_rate = 1e-3
 
@@ -36,12 +42,14 @@ training_data, test_data, n_labels = get_data(dataset_name=dataset_name,batch_s=
 
 # Initialise training loop
 trainingloop = TrainingLoop(training_data=training_data, test_data=test_data, n_labels=n_labels, striatum_training_delay=striatum_training_delay, 
-                            device=dev, cortex_ln_rate=cortex_ln_rate, striatal_ln_rate=striatal_ln_rate)
+                            cortex_ln_rate=cortex_ln_rate, cortex_h_state=cortex_h_state, 
+                            striatal_ln_rate=striatal_ln_rate, striatal_h_state=striatal_h_state, 
+                            IT_feedback=IT_feedback, ET_feedback=ET_feedback, device=dev)
 
 for e in range(epocs):
     trainingloop.train(e)
 
-cortical_test_performance, striatal_test_class_performance, striatal_test_rwd_performance = trainingloop.test_performance()
+cortical_test_performance, striatal_test_class_performance, striatal_test_rwd_performance = trainingloop.test_performance(impairCortex_afterLearning)
 cortical_test_acc = np.round(sum(cortical_test_performance)/len(cortical_test_performance),decimals=2)
 striatal_test_class_acc = np.round(sum(striatal_test_class_performance)/len(striatal_test_class_performance),decimals=2)
 
