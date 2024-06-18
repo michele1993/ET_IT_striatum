@@ -23,20 +23,20 @@ else:
 setup_logger()
 
 ## Experiment variables
-dataset_name = "synthetic_data" #mnist" #"cifar10"
+dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
 ET_feedback = True
-IT_feedback = False
-cortex_h_state = 156 # model cortex as a large (powerful) NN
+IT_feedback = True
+cortex_h_state = 256 # model cortex as a large (powerful) NN
 striatal_h_state = 156 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
-#specific_classes = [0,1]
+specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 2
+epocs = 10
 batch_s = 64
-striatum_training_delay = 1 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
+striatum_training_delay = 5 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 cortex_ln_rate = 1e-3
-striatal_ln_rate = 1e-4
+striatal_ln_rate = 1e-3
 
 # Get data organised in batches 
 training_data, test_data, n_labels = get_data(dataset_name=dataset_name,batch_s=batch_s, specific_classes=specific_classes)

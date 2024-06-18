@@ -25,11 +25,14 @@ def tsne_plotting(data, n_labels):
     plt.grid(True)
     plt.show()
 
-def generate_20DGauss_data(n_training_samples, n_test_samples):
+def generate_20DGauss_data(n_training_samples, n_test_samples, specific_classes):
     """
     Generates synthetic 20-dimensional data
     using a mixture of Gaussians.
     """
+    if specific_classes is not None:
+        assert np.max(specific_classes) <8, 'Can only provide at most 8 classes to sythetic data'
+
     # 20-dimensional means for the Gaussians
     means = [
         np.array([2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 3, 3, 5, 5, 7, 7, 9, 9, 11, 11]),
@@ -41,6 +44,13 @@ def generate_20DGauss_data(n_training_samples, n_test_samples):
         np.array([3, 2, 6, 5, 7, 8, 10, 9, 11, 12, 5, 4, 8, 7, 9, 10, 12, 11, 13, 14]),
         np.array([4, 3, 7, 6, 8, 9, 11, 10, 12, 13, 6, 5, 9, 8, 10, 11, 13, 12, 14, 15]),
     ]
+
+    # Select specific subset of classes
+    if specific_classes is not None:
+        all_means = means
+        means = []
+        for c in specific_classes:
+            means.append(all_means[c])
 
     # Diagonal covariances for simplicity
     cov = np.diag([3.5]*20)
@@ -80,13 +90,15 @@ def generate_20DGauss_data(n_training_samples, n_test_samples):
     # return training and test data in format suitable for dataloader, plus n_labels
     return list(zip(training_data, training_labels)), list(zip(test_data, test_labels)), len(means)
 
-def get_data(dataset_name='mnist',batch_s=64):
+def get_data(dataset_name='mnist',batch_s=64, specific_classes=None):
     """ 
     Method to load datasets from Pytoch library and organised them in bacthes
     Args:
         dataset_n: each number refers to a different dataset
         batch_s: size of the batch
     """
+
+    assert specific_classes is None or isinstance(specific_classes, list), 'specific_classes must be a list or None'
 
     if dataset_name == 'mnist':
         training_data = datasets.MNIST(
@@ -123,10 +135,24 @@ def get_data(dataset_name='mnist',batch_s=64):
         n_labels = len(training_data.classes)
     
     elif dataset_name == 'synthetic_data':
-        training_data, test_data, n_labels = generate_20DGauss_data(n_training_samples=800,n_test_samples=80)
+        training_data, test_data, n_labels = generate_20DGauss_data(n_training_samples=800,n_test_samples=80,specific_classes=specific_classes)
 
     else:
         raise NotImplementedError(f" {dataset_name} is an unknown dataset")
+
+    ## --------- Extract only data for a subset of specified classes -------
+    if specific_classes is not None and dataset_name!='synthetic_data':
+        # take first class in the classes list
+        tot_training_indx = training_data.targets==specific_classes[0]
+        tot_test_indx = test_data.targets==specific_classes[0]
+        # Loop over other classes to add them to overall indx of selected classes
+        for c in specific_classes[1:]:
+            training_indx = training_data.targets==c
+            test_indx = test_data.targets==c
+            tot_training_indx = torch.logical_or(tot_training_indx,training_indx)
+            tot_test_indx = torch.logical_or(tot_test_indx,test_indx)
+        n_labels = len(specific_classes)
+    ## ---------------------------------------------------------------------
 
     # Use DataLoader to get data organised in random batches
     train_dataloader = DataLoader(training_data,batch_size=batch_s,shuffle=True)#, num_workers=2)
