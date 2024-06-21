@@ -1,5 +1,5 @@
 import torch
-from Cortex_NN import Cortex_NN
+from Cortex_CNN import Cortex_CNN
 from Striatum_lNN import Striatum_lNN
 import logging
 
@@ -34,10 +34,10 @@ class TrainingLoop():
         n_img_channels = data_batch.size()[1] # e.g., grayscale=1, RBG=3
         img_width_s = data_batch.size()[2]
 
-        self.cortex = Cortex_NN(in_channels=n_img_channels, img_size=img_width_s, ln_rate=cortex_ln_rate).to(self.dev)
+        self.cortex = Cortex_CNN(in_channels=n_img_channels, img_size=img_width_s, ln_rate=cortex_ln_rate, n_h_units=cortex_h_state).to(self.dev)
 
-        IT_reps_s = self.cortex.cnnLayer1_size**2 * self.cortex.out_channels
-        self.striatum = Striatum_lNN(input_s=input_s, IT_inpt_s=IT_reps_s,
+        #IT_reps_s = self.cortex.cnnLayer1_size**2 * self.cortex.out_channels
+        #self.striatum = Striatum_lNN(input_s=input_s, IT_inpt_s=IT_reps_s,
 
     def train(self, ep, t_print=100):
 
@@ -55,32 +55,32 @@ class TrainingLoop():
             ## -------- Train cortex -------------
             cortical_prediction, cortical_h1, cortical_h2 = self.cortex(d)
             # Pre-train cortex and then stop updating it
-            if ep < self.striatum_training_delay:
-                loss = self.cortex.update(cortical_prediction,l)
-                train_cortex_loss.append(loss.detach())
+            #if ep < self.striatum_training_delay:
+            loss = self.cortex.update(cortical_prediction,d)
+            train_cortex_loss.append(loss.detach())
             ## -----------------------------------
             t+=1
 
-            striatal_cortical_input = cortical_h1
+            #striatal_cortical_input = cortical_h1
         
             ## -------- Train Striatum -------------
-            if ep >= self.striatum_training_delay:
-                ## Pass a zero vector as cortical input to striatum to mimic 
-                ## blocked IT cells
-                if not self.IT_feedback:
-                    cortical_h1 = torch.zeros_like(striatal_cortical_input).to(self.dev)
-                                        
-                if not self.ET_feedback:
-                    cortical_prediction = torch.zeros_like(cortical_prediction).to(self.dev)
+            #if ep >= self.striatum_training_delay:
+            #    ## Pass a zero vector as cortical input to striatum to mimic 
+            #    ## blocked IT cells
+            #    if not self.IT_feedback:
+            #        cortical_h1 = torch.zeros_like(striatal_cortical_input).to(self.dev)
+            #                            
+            #    if not self.ET_feedback:
+            #        cortical_prediction = torch.zeros_like(cortical_prediction).to(self.dev)
 
-                # Striatal predictions, the strl_class pred is for training only (i.e., trying to mimic cortical predictions)
-                strl_rwd = self.striatum(d,striatal_cortical_input.detach(),cortical_prediction.detach()) # detach() gradient to prevent striatal gradient to change cortical predictions
+            #    # Striatal predictions, the strl_class pred is for training only (i.e., trying to mimic cortical predictions)
+            #    strl_rwd = self.striatum(d,striatal_cortical_input.detach(),cortical_prediction.detach()) # detach() gradient to prevent striatal gradient to change cortical predictions
 
-                target_rwd = l
+            #    target_rwd = l
 
-                ## Train striatum to reproduce what cortex is doing (cortex predictions should be better teaching signal than labels)
-                rwd_loss = self.striatum.update(strl_rwd, target_rwd)
-                train_striatal_rwd_loss.append(rwd_loss.detach())
+            #    ## Train striatum to reproduce what cortex is doing (cortex predictions should be better teaching signal than labels)
+            #    rwd_loss = self.striatum.update(strl_rwd, target_rwd)
+            #    train_striatal_rwd_loss.append(rwd_loss.detach())
             ## -----------------------------------
 
             if t % t_print == 0:
@@ -88,8 +88,8 @@ class TrainingLoop():
                 if len(train_cortex_loss) !=0:
                     cortex_loss = sum(train_cortex_loss)/len(train_cortex_loss)
                 striatal_rwd_loss = None
-                if len(train_striatal_rwd_loss) !=0:
-                    striatal_rwd_loss = sum(train_striatal_rwd_loss)/len(train_striatal_rwd_loss)
+                #if len(train_striatal_rwd_loss) !=0:
+                #    striatal_rwd_loss = sum(train_striatal_rwd_loss)/len(train_striatal_rwd_loss)
                 logging.info(f"| Epoch: {ep} |  Step: {t} |  Cortex loss: {cortex_loss} | Striatal rwd loss: {striatal_rwd_loss}")
                 train_cortex_loss = []
                 train_striatal_rwd_loss = []
