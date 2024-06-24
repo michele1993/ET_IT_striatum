@@ -119,15 +119,15 @@ def get_data(dataset_name='mnist',batch_s=64, specific_classes=None):
 
     elif dataset_name == 'cifar10':
         training_data = datasets.CIFAR10(
-            root='./data', 
+            root='../data', 
             train=True,
             download=True, 
             transform=ToTensor()
         )
 
         test_data = datasets.CIFAR10(
-            root='./data', 
-            train=True,
+            root='../data', 
+            train=False,
             download=True, 
             transform=ToTensor()
         )
@@ -142,6 +142,9 @@ def get_data(dataset_name='mnist',batch_s=64, specific_classes=None):
 
     ## --------- Extract only data for a subset of specified classes -------
     if specific_classes is not None and dataset_name!='synthetic_data':
+        training_data.targets = torch.tensor(training_data.targets)
+        test_data.targets = torch.tensor(test_data.targets)
+
         # take first class in the classes list
         tot_training_indx = training_data.targets==specific_classes[0]
         tot_test_indx = test_data.targets==specific_classes[0]
@@ -151,6 +154,14 @@ def get_data(dataset_name='mnist',batch_s=64, specific_classes=None):
             test_indx = test_data.targets==c
             tot_training_indx = torch.logical_or(tot_training_indx,training_indx)
             tot_test_indx = torch.logical_or(tot_test_indx,test_indx)
+
+        # Select corresponding training data
+        training_data.data = training_data.data[tot_training_indx]
+        training_data.targets = training_data.targets[tot_training_indx]
+        # Select corresponding test data
+        test_data.data = test_data.data[tot_test_indx]
+        test_data.targets = test_data.targets[tot_test_indx]
+        # Select n. labels
         n_labels = len(specific_classes)
     ## ---------------------------------------------------------------------
 

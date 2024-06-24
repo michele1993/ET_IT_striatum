@@ -23,16 +23,16 @@ else:
 setup_logger()
 
 ## Experiment variables
-dataset_name = "mnist" #"synthetic_data" #mnist" #"cifar10"
+dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
 ET_feedback = True
 IT_feedback = True
-cortex_h_state = 256 # model cortex as a large (powerful) NN
+cortex_h_state = 2 # model cortex as a large (powerful) NN
 striatal_h_state = 156 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
-specific_classes = None #[0,1] # only ask two discriminate between two classes
+specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 100
+epocs = 50#0#00
 batch_s = 64
 striatum_training_delay = 100 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 cortex_ln_rate = 5e-4
@@ -40,6 +40,7 @@ striatal_ln_rate = 1e-3
 
 # Get data organised in batches 
 training_data, test_data, n_labels = get_data(dataset_name=dataset_name,batch_s=batch_s, specific_classes=specific_classes)
+
 
 # Initialise training loop
 trainingloop = TrainingLoop(training_data=training_data, test_data=test_data, n_labels=n_labels, striatum_training_delay=striatum_training_delay, 
@@ -50,6 +51,8 @@ trainingloop = TrainingLoop(training_data=training_data, test_data=test_data, n_
 for e in range(epocs):
     trainingloop.train(e)
 
+#trainingloop.plot_imgs()
+trainingloop.plot_latent_space_with_labels(num_classes=n_labels, specific_classes=specific_classes)
 exit()
 cortical_test_performance, striatal_test_class_performance, striatal_test_rwd_performance = trainingloop.test_performance(impairCortex_afterLearning)
 cortical_test_acc = np.round(sum(cortical_test_performance)/len(cortical_test_performance),decimals=2)

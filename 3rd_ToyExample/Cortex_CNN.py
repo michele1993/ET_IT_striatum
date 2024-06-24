@@ -14,7 +14,7 @@ class Reshape(nn.Module):
 
 class Cortex_CNN(nn.Module):
 
-    def __init__(self, in_channels, img_size, ln_rate, out_channels=32, kernel_size=5, stride_s=1, padding_s=0, dilation_s=1, n_h_units=56):
+    def __init__(self, in_channels, img_size, ln_rate, out_channels=32, kernel_size=3, stride_s=1, padding_s=1, dilation_s=1, n_h_units=56):
         """ Implement a convolutional autoencoder to mimic cortex, trained to reconstruct images """
 
         super().__init__()

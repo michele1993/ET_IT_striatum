@@ -2,6 +2,9 @@ import torch
 from Cortex_CNN import Cortex_CNN
 from Striatum_lNN import Striatum_lNN
 import logging
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import numpy as np
 
 class TrainingLoop():
 
@@ -94,6 +97,7 @@ class TrainingLoop():
                 train_cortex_loss = []
                 train_striatal_rwd_loss = []
 
+
     def test_performance(self, impairCortex_afterLearning):
 
         cortical_performance = []
@@ -133,3 +137,63 @@ class TrainingLoop():
                 ## ----------------------------------------------
 
         return cortical_performance, striatal_class_performance, striatal_rwd_performance
+
+    def plot_imgs(self, n_images=15):
+        """ Plot n. reconstructed test images together with true test images"""
+
+        # Extra n. of channels, width and n. labels for the specific dataset
+        test_batch, _ = next(iter(self.test_data))
+        color_channels = test_batch.shape[1]
+        image_height = test_batch.shape[2]
+        image_width = test_batch.shape[3]
+
+        cortical_prediction, _, _ = self.cortex(test_batch.to(self.dev))
+
+        orig_images = test_batch[:n_images]
+        decoded_images = cortical_prediction[:n_images]
+
+        fig, axes = plt.subplots(nrows=2, ncols=n_images, sharex=True, sharey=True, figsize=(10, 2.5))
+
+        # Loop through n. of desired images
+        for i in range(n_images):
+            # loop through origin and decoded images to plot the two for each n_image
+            for ax, img in zip(axes, [orig_images, decoded_images]):
+                curr_img = img[i].detach().to(torch.device('cpu'))
+                if color_channels > 1:
+                    curr_img = np.transpose(curr_img, (1, 2, 0))
+                    ax[i].imshow(curr_img)
+                else:
+                    ax[i].imshow(curr_img.view((image_height, image_width)), cmap='binary')
+
+        plt.show()
+
+    def plot_latent_space_with_labels(self,num_classes, specific_classes):
+
+        d = {i:[] for i in range(num_classes)}
+        test_batch, test_label_batch = next(iter(self.test_data))
+
+        cortical_prediction, _, embedding = self.cortex(test_batch.to(self.dev))
+        
+        if specific_classes is not None:
+            classes = specific_classes
+        else:    
+            classes = np.arange(0,num_classes)
+
+        e=0
+        for i in classes:
+            if i in test_label_batch:
+                mask = test_label_batch == i
+                d[e].append(embedding[mask].detach().to('cpu').numpy())
+                e+=1
+
+        colors = list(mcolors.TABLEAU_COLORS.items())
+        for i in range(num_classes):
+            d[i] = np.concatenate(d[i])
+            plt.scatter(
+                d[i][:, 0], d[i][:, 1],
+                color=colors[i][1],
+                label=f'{classes[i]}',
+                alpha=0.5)
+
+        plt.legend()
+        plt.show()
