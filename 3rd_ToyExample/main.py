@@ -7,6 +7,12 @@ from utils import get_data
 from utils import setup_logger
 import logging
  
+""" 
+In this Toy model, I model IT as CNN features of an encoder trained with unsuperivsed learning (by including a bottleneck and decoder for training IT features only), 
+, while I assume ET to build a rwd prediction from the IT representations. 
+The ET predictions are then passed to the striatum as target for training (instead of actual rwds) as well as input to the striatum (if ET_as_input=True).
+"""
+
 ## ---- Set seed for reproducibility purposes
 seed = 0
 torch.manual_seed(seed)
@@ -23,20 +29,21 @@ else:
 setup_logger()
 
 ## Experiment variables
-dataset_name = "mnist" #"synthetic_data" #mnist" #"cifar10"
-ET_feedback = True
-IT_feedback = True
-cortex_h_state = 2 # model cortex as a large (powerful) NN
-striatal_h_state = 156 # model striatum as a small (linear) NN
+dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
+ET_as_input = False # controls whether ET rwd predictions are also passed to the striatum as inputs
+IT_feedback = False
+cortex_bottleneck_s = 516 # model cortex as a large (powerful) NN
+cortex_ET_s = 516 # model cortex as a large (powerful) NN
+striatal_h_state = 516 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
-specific_classes = [0,9] # only ask two discriminate between two classes
+specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 5#0#00
+epocs = 1#0#00
 batch_s = 32
 striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 cortex_ln_rate = 5e-4
-striatal_ln_rate = 1e-3
+striatal_ln_rate = 5e-5
 
 
 # Get data organised in batches 
@@ -48,9 +55,9 @@ max_label = np.max(specific_classes)
 
 # Initialise training loop
 trainingloop = TrainingLoop(training_data=training_data, test_data=test_data, n_labels=n_labels, max_label=max_label, striatum_training_delay=striatum_training_delay, 
-                            cortex_ln_rate=cortex_ln_rate, cortex_h_state=cortex_h_state, 
+                            cortex_ln_rate=cortex_ln_rate, cortex_bottleneck_s=cortex_bottleneck_s, cortex_ET_s = cortex_ET_s, 
                             striatal_ln_rate=striatal_ln_rate, striatal_h_state=striatal_h_state, 
-                            IT_feedback=IT_feedback, ET_feedback=ET_feedback, device=dev)
+                            IT_feedback=IT_feedback, ET_feedback=ET_as_input, device=dev)
 
 
 for e in range(epocs):

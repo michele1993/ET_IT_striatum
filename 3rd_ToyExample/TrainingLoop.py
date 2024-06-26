@@ -16,7 +16,8 @@ class TrainingLoop():
         max_label,
         striatum_training_delay,
         cortex_ln_rate,
-        cortex_h_state,
+        cortex_bottleneck_s,
+        cortex_ET_s,
         striatal_ln_rate,
         striatal_h_state,
         IT_feedback,
@@ -41,7 +42,7 @@ class TrainingLoop():
         img_width_s = data_batch.size()[2]
         overall_img_s = img_width_s**2 * n_img_channels
 
-        self.cortex = Cortex_CNN(in_channels=n_img_channels, img_size=img_width_s, ln_rate=cortex_ln_rate, n_h_units=cortex_h_state).to(self.dev)
+        self.cortex = Cortex_CNN(in_channels=n_img_channels, img_size=img_width_s, ln_rate=cortex_ln_rate, n_h_units=cortex_bottleneck_s, ET_h_size=cortex_ET_s).to(self.dev)
 
         IT_reps_s = self.cortex.cnnOutput_size 
         ET_reps_s = 1 # for now just pass the value as input
@@ -84,6 +85,10 @@ class TrainingLoop():
         
             ## -------- Train Striatum -------------
             if ep >= self.striatum_training_delay:
+
+                # Pass actual rwd OR the cortical pred as target to train Striatum
+                striatum_target = cortical_rwd_pred.detach() # target_rwd
+
                 ## Pass a zero vector as cortical input to striatum to mimic 
                 ## blocked IT cells
                 if not self.IT_feedback:
@@ -93,7 +98,7 @@ class TrainingLoop():
                     cortical_rwd_pred = torch.zeros_like(cortical_rwd_pred).to(self.dev)
 
                 strl_rwd = self.striatum(d, IT_features, cortical_rwd_pred.detach())
-                rwd_loss = self.striatum.update(strl_rwd, cortical_rwd_pred.detach()) # target_rwd ?
+                rwd_loss = self.striatum.update(strl_rwd, striatum_target)
                 train_striatal_rwd_loss.append(rwd_loss.detach())
             ## -----------------------------------
 
