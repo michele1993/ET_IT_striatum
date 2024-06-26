@@ -14,7 +14,7 @@ class Reshape(nn.Module):
 
 class Cortex_CNN(nn.Module):
 
-    def __init__(self, in_channels, img_size, ln_rate, out_channels=32, kernel_size=3, stride_s=1, padding_s=1, dilation_s=1, n_h_units=56):
+    def __init__(self, in_channels, img_size, ln_rate, out_channels=32, kernel_size=3, stride_s=1, padding_s=1, dilation_s=1, ET_h_size=10, n_h_units=56):
         """ Implement a convolutional autoencoder to mimic cortex, trained to reconstruct images """
 
         super().__init__()
@@ -42,16 +42,19 @@ class Cortex_CNN(nn.Module):
             nn.Flatten()
         )
 
-        # Call all the conv & maxPool operations on an empty tensor to infer the output representation size after each conv block
-        # NOTE: this is needed because each con2d and MaxPool2d operation shrinks the size of the image
-        self.cnnOutput_size = self.cnn_encoder(torch.ones(1, in_channels, img_size, img_size)).size(-1) 
+        # Call all the conv operations on an empty tensor to infer the output representation size after each conv block
+        self.cnnOutput_size = self.cnn_encoder(torch.ones(1, in_channels, img_size, img_size)).size(-1) # use -1 since hase nn.Flatten()
 
-        # compute the output of the width/height of image coming out CNN encoder
+        # infer the output of the width/height of image coming out CNN encoder from overall size
         cnn_img_size = int(np.sqrt(self.cnnOutput_size/(2*out_channels)))
 
         # pass the output size of the conv block to a linear layer
         # need to multiply the final layer size by itself since images have both width and height (assuming width=height)
         self.l1 = nn.Linear(self.cnnOutput_size, n_h_units)
+
+        ## Define ET cells trying to predict values
+        self.ET_layer =  nn.Linear(self.cnnOutput_size, ET_h_size)
+        self.ET_output =  nn.Linear(ET_h_size, 1)
 
         self.cnn_decoder = nn.Sequential(
             nn.Linear(n_h_units, self.cnnOutput_size), # 'Revert' linear operation performed to map onto bottleneck latent space
@@ -80,25 +83,33 @@ class Cortex_CNN(nn.Module):
         self.optimizer = opt.Adam(self.parameters(),ln_rate)
     
     def forward(self,x):
-        """ CNN autoencoder pass
+        """ 
+        CNN encoder modelling IT cells, pass IT (CNN) features to an ET layer to do reward prediction
+            also pass IT features to a bottleneck and decoder for training IT features
+            (i.e., IT features are not trained for value prediction but through unsupervised learning)
             Args:
                 x: the input image to be reconstructed
             Returns: 
-                x_hat: reconstructed image
-                cnn_h: the (latent) representation build by the CCN encoder (Not the bottleneck)
-                h: the (latent) representation build by the bottleneck
+                x_pred: reconstructed input (e.g., image)
+                rwd_pred: the prediction of the value of the input
+                IT_features: the (latent) representation build by the CCN encoder by unsupervised learning (Not the bottleneck) 
+                ET_features: the (latent) representation build to predict the value 
         """
         
-        cnn_h = self.cnn_encoder(x)
+        IT_features = self.cnn_encoder(x)
 
-        h = self.l1(cnn_h)
+        ## --------- Value prediction ----------
+        ET_features = torch.relu(self.ET_layer(IT_features.detach())) # detach() to prevent ET predictions shaping IT features
+        rwd_pred = self.ET_output(ET_features)
 
-        x_hat = self.cnn_decoder(h)
+        ## -------- Unsupervised learning (to train IT features only) ----------
+        bottleneck = self.l1(IT_features)
+        x_pred = self.cnn_decoder(bottleneck)
 
         # return last layer representation
-        return x_hat, cnn_h, h
+        return x_pred, rwd_pred, IT_features.detach(), ET_features.detach()
 
-    def update(self, predictions, targets):
+    def update(self, x_predictions, x_targets, rwd_pred, target_rwd):
         """ 
         update the newtork based on mean squared loss on target images
         Args:
@@ -106,9 +117,12 @@ class Cortex_CNN(nn.Module):
             targets: target images
         """
         self.optimizer.zero_grad()
+
         # Train auto-encoder with MSE
-        loss = nn.functional.mse_loss(predictions,targets)
+        reconstruction_loss = nn.functional.mse_loss(x_predictions,x_targets)
+        rwd_loss = nn.functional.mse_loss(rwd_pred.squeeze(),target_rwd)
+        loss = reconstruction_loss + rwd_loss
         loss.backward()
         self.optimizer.step()
-        return loss
+        return reconstruction_loss, rwd_loss
 
