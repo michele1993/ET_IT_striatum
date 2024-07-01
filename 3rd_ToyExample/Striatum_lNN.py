@@ -33,7 +33,7 @@ class Striatum_lNN(nn.Module):
         h = self.l1(x)
 
         ## .detach() to prevent rwds (dopamine) to shape striatal representations, but only readout to predict rewards
-        rwd_logits = torch.sigmoid(self.l_rwd_output(h))
+        rwd_logits = torch.sigmoid(self.l_rwd_output(h.detach()))
 
         return  rwd_logits
 

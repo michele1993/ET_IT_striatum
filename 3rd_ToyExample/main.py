@@ -30,16 +30,16 @@ setup_logger()
 
 ## Experiment variables
 dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
-ET_as_input = False # controls whether ET rwd predictions are also passed to the striatum as inputs
-IT_feedback = False
-cortex_bottleneck_s = 516 # model cortex as a large (powerful) NN
-cortex_ET_s = 516 # model cortex as a large (powerful) NN
-striatal_h_state = 516 # model striatum as a small (linear) NN
+ET_as_input = True # controls whether ET rwd predictions are also passed to the striatum as inputs
+IT_feedback = True
+cortex_bottleneck_s = 56 # model cortex as a large (powerful) NN
+cortex_ET_s = 25 # model cortex as a large (powerful) NN
+striatal_h_state = 25 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 1#0#00
+epocs = 3#0#00
 batch_s = 32
 striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 cortex_ln_rate = 5e-4
