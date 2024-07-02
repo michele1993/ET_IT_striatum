@@ -14,7 +14,7 @@ class Reshape(nn.Module):
 
 class IT_CNN(nn.Module):
 
-    def __init__(self, in_channels, img_size, ln_rate, out_channels=16, kernel_size=3, stride_s=1, padding_s=1, dilation_s=1, n_h_units=56):
+    def __init__(self, in_channels, img_size, ln_rate=1e-4, out_channels=16, kernel_size=3, stride_s=1, padding_s=1, dilation_s=1, bottleneck_s=56):
         """ Implement a convolutional autoencoder to mimic cortex, trained to reconstruct images """
 
         super().__init__()
@@ -58,10 +58,10 @@ class IT_CNN(nn.Module):
         cnn_img_size = int(np.sqrt(self.cnnOutput_size/(3*out_channels)))
 
         # pass the output size of the conv block to a linear layer
-        self.l1 = nn.Linear(self.cnnOutput_size, n_h_units) # bottleneck
+        self.l1 = nn.Linear(self.cnnOutput_size, bottleneck_s) # bottleneck
 
         self.cnn_decoder = nn.Sequential(
-            nn.Linear(n_h_units, self.cnnOutput_size), # 'Revert' linear operation performed to map onto bottleneck latent space
+            nn.Linear(bottleneck_s, self.cnnOutput_size), # 'Revert' linear operation performed to map onto bottleneck latent space
             Reshape(-1,3*out_channels, cnn_img_size,cnn_img_size), # See helper class above!
             nn.ConvTranspose2d(
                 in_channels=3*out_channels, # since passing latent state from bottleneck

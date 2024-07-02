@@ -1,11 +1,11 @@
 import torch
 import numpy as np
-from TrainingLoop import TrainingLoop
 import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils import get_data
 from utils import setup_logger
 import logging
+from TrainingLoop import TrainingLoop
  
 """ 
 In this Toy model, I model IT as CNN features of an encoder trained with unsuperivsed learning (by including a bottleneck and decoder for training IT features only), 
@@ -30,20 +30,19 @@ setup_logger()
 
 ## Experiment variables
 dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
-ET_as_input = True # controls whether ET rwd predictions are also passed to the striatum as inputs
+ET_as_input = False #True # controls whether ET rwd predictions are also passed to the striatum as inputs
 IT_feedback = True
-cortex_bottleneck_s = 56 # model cortex as a large (powerful) NN
-cortex_ET_s = 25 # model cortex as a large (powerful) NN
-striatal_h_state = 25 # model striatum as a small (linear) NN
+cortex_ET_s = 256 # model cortex as a large (powerful) NN
+striatal_h_state = 20 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 3#0#00
+epocs = 5 #25#00
 batch_s = 32
 striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
-cortex_ln_rate = 5e-4
-striatal_ln_rate = 5e-5
+ET_ln_rate = 1e-3
+striatal_ln_rate = 1e-5
 
 
 # Get data organised in batches 
@@ -54,8 +53,9 @@ training_data, test_data, n_labels = get_data(dataset_name=dataset_name,batch_s=
 max_label = np.max(specific_classes)
 
 # Initialise training loop
-trainingloop = TrainingLoop(training_data=training_data, test_data=test_data, n_labels=n_labels, max_label=max_label, striatum_training_delay=striatum_training_delay, 
-                            cortex_ln_rate=cortex_ln_rate, cortex_bottleneck_s=cortex_bottleneck_s, cortex_ET_s = cortex_ET_s, 
+trainingloop = TrainingLoop(dataset_name=dataset_name, training_data=training_data, test_data=test_data, n_labels=n_labels, 
+                            max_label=max_label, striatum_training_delay=striatum_training_delay, 
+                            ET_ln_rate=ET_ln_rate, cortex_ET_s = cortex_ET_s, 
                             striatal_ln_rate=striatal_ln_rate, striatal_h_state=striatal_h_state, 
                             IT_feedback=IT_feedback, ET_feedback=ET_as_input, device=dev)
 

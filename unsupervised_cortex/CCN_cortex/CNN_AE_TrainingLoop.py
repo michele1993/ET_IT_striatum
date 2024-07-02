@@ -14,7 +14,6 @@ class AECNN_TrainingLoop():
         n_labels,
         max_label,
         cortex_ln_rate,
-        cortex_bottleneck_s,
         device
     ):
 
@@ -32,7 +31,7 @@ class AECNN_TrainingLoop():
         img_width_s = data_batch.size()[2]
         overall_img_s = img_width_s**2 * n_img_channels
 
-        self.IT = IT_CNN(in_channels=n_img_channels, img_size=img_width_s, ln_rate=cortex_ln_rate, n_h_units=cortex_bottleneck_s).to(self.dev)
+        self.IT = IT_CNN(in_channels=n_img_channels, img_size=img_width_s, ln_rate=cortex_ln_rate).to(self.dev)
 
 
     def train(self, ep, t_print=100):

@@ -1,5 +1,8 @@
 import torch
-from Cortex_CNN import Cortex_CNN
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from CCN_cortex.IT_CNN import IT_CNN
+from ET_NN import ET_NN
 from Striatum_lNN import Striatum_lNN
 import logging
 import matplotlib.pyplot as plt
@@ -10,13 +13,13 @@ class TrainingLoop():
 
     def __init__(
         self,
+        dataset_name,
         training_data,
         test_data,
         n_labels,
         max_label,
         striatum_training_delay,
-        cortex_ln_rate,
-        cortex_bottleneck_s,
+        ET_ln_rate,
         cortex_ET_s,
         striatal_ln_rate,
         striatal_h_state,
@@ -42,10 +45,18 @@ class TrainingLoop():
         img_width_s = data_batch.size()[2]
         overall_img_s = img_width_s**2 * n_img_channels
 
-        self.cortex = Cortex_CNN(in_channels=n_img_channels, img_size=img_width_s, ln_rate=cortex_ln_rate, n_h_units=cortex_bottleneck_s, ET_h_size=cortex_ET_s).to(self.dev)
 
-        IT_reps_s = self.cortex.cnnOutput_size 
-        ET_reps_s = cortex_ET_s # for now just pass the value as input
+        # Initialise and load pretrained IT model
+        self.IT = IT_CNN(in_channels=n_img_channels, img_size=img_width_s).to(self.dev)
+        file_dir = os.path.dirname(os.path.abspath(__file__))
+        file_dir = os.path.join(file_dir,'..','models')
+        IT_model_dir = os.path.join(file_dir,f'{dataset_name}_IT_model.pt')
+        self.IT.load_state_dict(torch.load(IT_model_dir,  map_location=self.dev))
+
+        # Initialise ET model
+        IT_reps_s = self.IT.cnnOutput_size 
+        self.ET = ET_NN(IT_input_s=IT_reps_s, ln_rate=ET_ln_rate, ET_h_size=cortex_ET_s).to(self.dev)
+        ET_reps_s = cortex_ET_s # 1 ## for now just pass the value as input
 
         self.striatum = Striatum_lNN(input_s=overall_img_s, IT_inpt_s=IT_reps_s, ET_inpt_s= ET_reps_s, ln_rate=striatal_ln_rate, h_size=striatal_h_state).to(self.dev)
 
@@ -56,7 +67,6 @@ class TrainingLoop():
 
     def train(self, ep, t_print=100):
 
-        train_cortex_rcstr_loss = []
         train_cortex_rwd_loss = []
         train_striatal_rwd_loss = []
         t=0
@@ -72,12 +82,16 @@ class TrainingLoop():
             # Compute rwd (i.e., rwd=1 for one class, rwd=0 for the other)
             target_rwd = torch.floor(l/self.max_label) # generalise rwd function to any two class labels
 
-            ## -------- Train cortex -------------
-            d_prediction, cortical_rwd_pred, IT_features, ET_features = self.cortex(d)
-            # Pre-train cortex and then stop updating it
-            #if ep < self.striatum_training_delay:
-            reconstruction_loss, rwd_loss = self.cortex.update(d_prediction, d, cortical_rwd_pred, target_rwd)
-            train_cortex_rcstr_loss.append(reconstruction_loss.detach())
+            ## Get IT features
+            _ , IT_features = self.IT(d)
+            ## Pass a zero vector as cortical input to striatum to mimic 
+            ## blocked IT cells
+            if not self.IT_feedback:
+                IT_features = torch.zeros_like(IT_features).to(self.dev)
+
+            ## -------- Train ET  -------------
+            cortical_rwd_pred, ET_features = self.ET(IT_features)
+            rwd_loss = self.ET.update(cortical_rwd_pred, target_rwd)
             train_cortex_rwd_loss.append(rwd_loss.detach())
             ## -----------------------------------
             t+=1
@@ -88,11 +102,6 @@ class TrainingLoop():
 
                 # Pass actual rwd OR the cortical pred as target to train Striatum
                 striatum_target =  target_rwd
-
-                ## Pass a zero vector as cortical input to striatum to mimic 
-                ## blocked IT cells
-                if not self.IT_feedback:
-                    IT_features = torch.zeros_like(IT_features).to(self.dev)
                                         
                 if not self.ET_feedback: # Assume the ET feedback conveys the rwd prediction to the striatum
                    #cortical_rwd_pred = torch.zeros_like(cortical_rwd_pred).to(self.dev)
@@ -104,15 +113,13 @@ class TrainingLoop():
             ## -----------------------------------
 
             if t % t_print == 0:
-                cortex_loss = None
-                if len(train_cortex_rcstr_loss) !=0:
-                    cortex_rcstr_loss = sum(train_cortex_rcstr_loss)/len(train_cortex_rcstr_loss)
+                cortex_rwd_loss = None
+                if len(train_cortex_rwd_loss) !=0:
                     cortex_rwd_loss = sum(train_cortex_rwd_loss)/len(train_cortex_rwd_loss)
                 striatal_rwd_loss = None
                 if len(train_striatal_rwd_loss) !=0:
                     striatal_rwd_loss = sum(train_striatal_rwd_loss)/len(train_striatal_rwd_loss)
-                logging.info(f"| Epoch: {ep} |  Step: {t} | Cortex reconstruction loss: {cortex_rcstr_loss} | Cortex rwd loss: {cortex_rwd_loss} | Striatal rwd loss: {striatal_rwd_loss}")
-                train_cortex_rcstr_loss = []
+                logging.info(f"| Epoch: {ep} |  Step: {t} | Cortex rwd loss: {cortex_rwd_loss} | Striatal rwd loss: {striatal_rwd_loss}")
                 train_cortex_rwd_loss = []
                 train_striatal_rwd_loss = []
 
@@ -132,15 +139,22 @@ class TrainingLoop():
 
                 # Compute rwd (i.e., rwd=1 for one class, rwd=0 for the other)
                 target_rwd = torch.floor(l/self.max_label) # generalise rwd function to any two class labels
+                
+                ## Get IT features
+                _ , IT_features = self.IT(d)
+
+                ## Pass a zero vector as cortical input to striatum to mimic blocked IT cells
+                if not self.IT_feedback:
+                    IT_features = torch.zeros_like(IT_features).to(self.dev)
+
+                ## Get ET features
+                cortical_rwd_pred, ET_features = self.ET(IT_features)
+
 
                 # Test performance for cortex
-                d_prediction, cortical_rwd_pred, IT_features, ET_features = self.cortex(d)
                 cortical_rwd_acc = torch.sum((target_rwd == torch.round(cortical_rwd_pred.squeeze()))).item() /len(l) 
                 cortical_rwd_performance.append(cortical_rwd_acc)
 
-                if not self.IT_feedback:
-                    IT_features = torch.zeros_like(IT_features).to(self.dev)
-                                        
                 if not self.ET_feedback:
                     #cortical_rwd_pred = torch.zeros_like(cortical_rwd_pred).to(self.dev)
                     ET_features = torch.zeros_like(ET_features).to(self.dev)

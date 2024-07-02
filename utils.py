@@ -102,14 +102,14 @@ def get_data(dataset_name='mnist',batch_s=64, specific_classes=None):
 
     if dataset_name == 'mnist':
         training_data = datasets.MNIST(
-            root="../data",
+            root="../../data",
             train=True,
             download=True,
             transform=ToTensor()
         )
 
         test_data = datasets.MNIST(
-            root="../data",
+            root="../../data",
             train=False,
             download=True,
             transform=ToTensor()
@@ -119,14 +119,14 @@ def get_data(dataset_name='mnist',batch_s=64, specific_classes=None):
 
     elif dataset_name == 'cifar10':
         training_data = datasets.CIFAR10(
-            root='../data', 
+            root='../../data', 
             train=True,
             download=True, 
             transform=ToTensor()
         )
 
         test_data = datasets.CIFAR10(
-            root='../data', 
+            root='../../data', 
             train=False,
             download=True, 
             transform=ToTensor()

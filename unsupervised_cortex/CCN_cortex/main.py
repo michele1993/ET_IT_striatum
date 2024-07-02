@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from CNN_AE_TrainingLoop import AECNN_TrainingLoop
 import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import get_data
 from utils import setup_logger
 import logging
@@ -17,7 +17,7 @@ The ET (latent) representations are then passed to the striatum as target for tr
 seed = 0
 torch.manual_seed(seed)
 np.random.seed(seed)
-save_file=True
+save_file = False
 
 # Select correct device
 if torch.cuda.is_available():
@@ -31,7 +31,6 @@ setup_logger()
 
 ## Experiment variables
 dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
-cortex_bottleneck_s = 56 # model cortex as a large (powerful) NN
 specific_classes = None #[0,1] # only ask two discriminate between two classes
 
 # Training variables
@@ -48,7 +47,7 @@ max_label = np.max(specific_classes)
 
 # Initialise training loop
 trainingloop = AECNN_TrainingLoop(training_data=training_data, test_data=training_data, n_labels=n_labels, max_label=max_label, 
-                            cortex_ln_rate=cortex_ln_rate, cortex_bottleneck_s=cortex_bottleneck_s, device=dev) 
+                            cortex_ln_rate=cortex_ln_rate, device=dev) 
                             
 for e in range(epocs):
     trainingloop.train(e)
@@ -59,7 +58,7 @@ file_dir = os.path.join(file_dir,'..','models')
 
 # Create directory if it did't exist before
 os.makedirs(file_dir, exist_ok=True)
-model_dir = os.path.join(file_dir,'IT_model.pt')
+model_dir = os.path.join(file_dir,f'{dataset_name}_IT_model.pt')
 if save_file:
     torch.save(trainingloop.IT.state_dict(),model_dir)
 

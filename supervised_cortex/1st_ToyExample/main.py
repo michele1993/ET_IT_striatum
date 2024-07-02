@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from TrainingLoop import TrainingLoop
 import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils import get_data
 from utils import setup_logger
 import logging
