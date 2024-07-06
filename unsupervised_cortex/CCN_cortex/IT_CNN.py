@@ -19,6 +19,8 @@ class IT_CNN(nn.Module):
 
         super().__init__()
 
+        self.bottleneck_s = bottleneck_s
+
         # First CNN layer with Maxpooling
         self.cnn_encoder = nn.Sequential(
             nn.Conv2d(
@@ -113,7 +115,7 @@ class IT_CNN(nn.Module):
         x_pred = self.cnn_decoder(bottleneck)
 
         # return last layer representation
-        return x_pred, IT_features.detach()
+        return x_pred, IT_features.detach() #bottleneck.detach()
 
     def update(self, x_predictions, x_targets):
         """ 

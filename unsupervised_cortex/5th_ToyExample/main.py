@@ -30,19 +30,19 @@ setup_logger()
 
 ## Experiment variables
 dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
-ET_as_input = False #True # controls whether ET rwd predictions are also passed to the striatum as inputs
-IT_feedback = True
+ET_as_input = True
+IT_feedback = False
 cortex_ET_s = 256 # model cortex as a large (powerful) NN
 striatal_h_state = 20 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 5 #25#00
-batch_s = 32
+epocs = 10 #25#00
+batch_s = 64
 striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 ET_ln_rate = 1e-3
-striatal_ln_rate = 1e-5
+striatal_ln_rate = 1e-3 #1e-5
 
 
 # Get data organised in batches 
@@ -69,8 +69,8 @@ for e in range(epocs):
 ## -------------------------
 
 ## ------ Test performance ---------
-cortical_rwd_performance, striatal_rwd_performance = trainingloop.test_performance(impairCortex_afterLearning)
-cortical_test_rwd_acc = np.round(sum(cortical_rwd_performance)/len(cortical_rwd_performance),decimals=2)
+striatal_rwd_performance, actions = trainingloop.test_performance(impairCortex_afterLearning)
 striatal_test_rwd_acc = np.round(sum(striatal_rwd_performance)/len(striatal_rwd_performance),decimals=2)
-logging.info(f"*** | Cortical test rwd accuracy:  {cortical_test_rwd_acc*100}% | Striatal test rwd accuracy:  {striatal_test_rwd_acc*100}% | ***")
+mean_test_action = sum(actions)/len(actions)
+logging.info(f"*** | Striatal test rwd accuracy:  {striatal_test_rwd_acc*100}% | Test mean action: {mean_test_action}***")
 ## ---------------------

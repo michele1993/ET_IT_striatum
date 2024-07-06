@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from CNN_AE_TrainingLoop import AECNN_TrainingLoop
 import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils import get_data
 from utils import setup_logger
 import logging
@@ -30,11 +30,11 @@ else:
 setup_logger()
 
 ## Experiment variables
-dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
+dataset_name = "mnist" #"synthetic_data" #mnist" #"cifar10"
 specific_classes = None #[0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 50#0#00
+epocs = 20#0#00
 batch_s = 64
 cortex_ln_rate = 5e-4
 
