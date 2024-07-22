@@ -31,14 +31,14 @@ setup_logger()
 ## Experiment variables
 dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
 ET_as_input = True
-IT_feedback = False
+IT_feedback = True
 cortex_ET_s = 256 # model cortex as a large (powerful) NN
 striatal_h_state = 20 # model striatum as a small (linear) NN
-impairCortex_afterLearning = False # At the moment assessed on test data
+impairCortex_afterLearning = True # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 10 #25#00
+epocs = 50
 batch_s = 64
 striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 ET_ln_rate = 1e-3
