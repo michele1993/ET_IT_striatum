@@ -38,11 +38,11 @@ impairCortex_afterLearning = True # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 50
+epocs = 30
 batch_s = 64
 striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 ET_ln_rate = 1e-3
-striatal_ln_rate = 1e-3 #1e-5
+striatal_ln_rate = 5e-4 #1e-3 #1e-5
 
 
 # Get data organised in batches 

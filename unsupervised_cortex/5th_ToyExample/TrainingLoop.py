@@ -72,6 +72,8 @@ class TrainingLoop():
         train_cortex_rwd_loss = []
         train_striatal_rwd_loss = []
         train_striatal_sprvsd_loss = []
+        train_n_hit = []
+        train_n_CR = []
         t=0
 
         for d,l in self.training_data:
@@ -82,19 +84,30 @@ class TrainingLoop():
             d = d.to(self.dev)
             l = l.to(self.dev)
 
-
             ## Get IT features
             _ , IT_features = self.IT(d)
             ## Pass a zero vector as cortical input to striatum to mimic 
             ## blocked IT cells
             if not self.IT_feedback:
-                IT_features = torch.zeros_like(IT_features).to(self.dev)
+                #IT_features = torch.zeros_like(IT_features).to(self.dev)
+                IT_features = torch.randn_like(IT_features).to(self.dev)
         
             # Striatum selects action
             action, action_pred_p, action_p  = self.striatum(d, IT_features)
 
             # Compute rwd (i.e., rwd=1 for one class, rwd=0 for the other)
             CS_rwd = torch.floor(l/self.max_label) # generalise rwd function to any two class labels
+
+            ## -------- Compute n. hit and CR ------------
+            CS_p_indx = CS_rwd == 1
+            CS_m_indx = CS_rwd == 0
+
+            n_hit = torch.sum(action[CS_p_indx] ==1) / torch.sum(CS_p_indx)
+            train_n_hit.append(n_hit.detach().item())
+            #n_miss = torch.sum(action[CS_p_indx] ==0) / torch.sum(CS_p_indx)
+            #n_FA = torch.sum(action[CS_m_indx] ==1) / torch.sum(CS_m_indx)
+            n_CR = torch.sum(action[CS_m_indx] ==0) / torch.sum(CS_m_indx)
+            train_n_CR.append(n_CR.detach().item())
 
             #rwd = CS_rwd * action # rwd delivery depends on the action, lick or no lick
 
@@ -106,17 +119,16 @@ class TrainingLoop():
             # Update ET mean rwd prediction if have access to ET 
             if self.ET_feedback:
                 #indx_a = action ==1 # update only mean rwd only when lick took place
-                #self.mean_rwd += torch.mean(0.1 * RPE[indx_a]) 
-                self.mean_rwd += torch.mean(0.001 * RPE)
-                #self.mean_rwd = 0.25
+                #self.mean_rwd += torch.mean(0.005 * RPE[indx_a]) 
+                self.mean_rwd += torch.mean(0.005 * RPE)
+                #self.mean_rwd = 0.5
 
-            RPE = RPE * action # update only for action where lick took place
+            RPE = RPE  * action # update only for action where lick took place
 
             #print("\n",RPE)
             #print(CS_rwd * action, "\n")
 
             ## -------- Train ET  -------------
-
             #ET_target = rwd.clone()
             #cortical_rwd_pred, ET_features = self.ET(IT_features, action)
             #indx = torch.logical_and(action == 1 , CS_rwd == 0)
@@ -135,20 +147,26 @@ class TrainingLoop():
             ## -----------------------------------
 
             t+=1
-
             if t % t_print == 0:
                 cortex_rwd_loss = None
                 if len(train_cortex_rwd_loss) !=0:
                     cortex_rwd_loss = sum(train_cortex_rwd_loss)/len(train_cortex_rwd_loss)
+
                 striatal_rwd_loss = None
                 if len(train_striatal_rwd_loss) !=0:
                     striatal_rwd_loss = sum(train_striatal_rwd_loss)/len(train_striatal_rwd_loss)
                     striatal_sprvsd_loss = sum(train_striatal_sprvsd_loss)/len(train_striatal_sprvsd_loss)
-                    logging.info(f"| Epoch: {ep} |  Step: {t} | Cortex rwd loss: {cortex_rwd_loss} | Striatal rwd loss: {striatal_rwd_loss} | Striatal supervised loss: {striatal_sprvsd_loss}")
-                print("\n Mean rwd: ", self.mean_rwd, '\n')
+                    striatal_n_hit = sum(train_n_hit)/len(train_n_hit)
+                    striatal_n_CR = sum(train_n_CR)/len(train_n_CR)
+
+                logging.info(f"\n | Epoch: {ep} |  Step: {t} | Cortex rwd loss: {cortex_rwd_loss} | Striatal rwd loss: {striatal_rwd_loss} | Striatal supervised loss: {striatal_sprvsd_loss}")
+                logging.info(f"| n. hit: {striatal_n_hit} | n. CR: {striatal_n_CR} | Mean action: {sum(action)/len(action)} | Mean rwd: {self.mean_rwd} \n |")
+                #print("Mean action: ", sum(action)/len(action))
+                #print("Mean rwd: ", self.mean_rwd, '\n')
                 train_cortex_rwd_loss = []
                 train_striatal_rwd_loss = []
                 train_striatal_sprvsd_loss = []
+
 
 
     def test_performance(self, impairCortex_afterLearning=False):
