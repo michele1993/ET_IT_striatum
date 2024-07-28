@@ -60,7 +60,7 @@ class TrainingLoop():
 
         self.striatum = Striatum_lNN(input_s=overall_img_s, IT_inpt_s=IT_reps_s, ln_rate=striatal_ln_rate, h_size=striatal_h_state, device=self.dev).to(self.dev)
 
-        self.mean_rwd = 0
+        self.mean_rwd = torch.tensor(0)
 
     def _impair_cortex(self):
         """ Method to turn off cortical feedback to the Striatum"""
@@ -84,7 +84,7 @@ class TrainingLoop():
         tot_CSm_action_p.append(0.1)
 
         tot_mean_rwd = []
-        tot_mean_rwd.append(self.mean_rwd)
+        tot_mean_rwd.append(self.mean_rwd.clone().cpu())
 
 
         for d,l in self.training_data:
@@ -113,8 +113,11 @@ class TrainingLoop():
             CS_m_indx = CS_rwd == 0
 
             ## Store estimated action p for each CS
-            train_CSp_action_p.append(target_action_p[CS_p_indx].mean().item())
-            train_CSm_action_p.append(target_action_p[CS_m_indx].mean().item())
+            train_CSp_action_p.append(target_action_p[CS_p_indx].mean().clone().item())
+            train_CSm_action_p.append(target_action_p[CS_m_indx].mean().clone().item())
+
+            #print("\n",target_action_p[CS_p_indx].mean())
+            #print(target_action_p[CS_m_indx].mean(), "\n")
 
             ## -------- Compute n. hit and CR ------------
             n_hit = torch.sum(action[CS_p_indx] ==1) / torch.sum(CS_p_indx)
@@ -191,6 +194,8 @@ class TrainingLoop():
                 train_cortex_rwd_loss = []
                 train_striatal_rwd_loss = []
                 train_striatal_sprvsd_loss = []
+                train_CSp_action_p = []
+                train_CSm_action_p = []
 
         return tot_CSp_action_p, tot_CSm_action_p, tot_mean_rwd 
 
@@ -217,7 +222,7 @@ class TrainingLoop():
 
                 ## Pass a zero vector as cortical input to striatum to mimic blocked IT cells
                 if not self.IT_feedback:
-                    IT_features = torch.zeros_like(IT_features).to(self.dev)
+                    IT_features = torch.randn_like(IT_features).to(self.dev)
 
                 
                 cortex_action, action_pred_p, _ = self.striatum(d, IT_features)

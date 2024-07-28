@@ -17,7 +17,7 @@ The ET predictions are then passed to the striatum as target for training (inste
 seed = 0
 torch.manual_seed(seed)
 np.random.seed(seed)
-save_file = True
+save_file = False
 
 # Select correct device
 if torch.cuda.is_available():
@@ -35,11 +35,11 @@ ET_feedback = True
 IT_feedback = True
 cortex_ET_s = 256 # model cortex as a large (powerful) NN
 striatal_h_state = 20 # model striatum as a small (linear) NN
-impairCortex_afterLearning = True # At the moment assessed on test data
+impairCortex_afterLearning = False # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 1
+epocs = 50
 batch_s = 64
 striatum_training_delay = 0 # delay training of the striatum by n. epocs, to allow cortex to learn good reprs. first
 ET_ln_rate = 1e-3
@@ -69,11 +69,9 @@ for e in range(epocs):
     tot_CSm_action_p.append(CSm_action_p)
     tot_mean_rwd.append(mean_rwd)
 
-tot_CSp_action_p = np.array(tot_CSm_action_p).reshape(-1)
-tot_CSm_action_p = np.array(tot_CSp_action_p).reshape(-1)
+tot_CSp_action_p = np.array(tot_CSp_action_p).reshape(-1)
+tot_CSm_action_p = np.array(tot_CSm_action_p).reshape(-1)
 tot_mean_rwd = np.array(tot_mean_rwd).reshape(-1)
-
-#print(tot_CSp_action_p, tot_CSm_action_p, tot_mean_rwd)
 
 ## ----- Useful plots ------
 #trainingloop.plot_imgs()
@@ -93,9 +91,9 @@ file_dir = os.path.dirname(os.path.abspath(__file__))
 file_dir = os.path.join(file_dir,'results')
 
 data = f'{dataset_name}_LickData'
-if not ET_feedback ==0:
+if not ET_feedback:
     data += '_noET_'
-if not IT_feedback ==1:    
+if not IT_feedback:    
     data += '_noIT_'
 data += '.pt'
 
@@ -105,6 +103,7 @@ if save_file:
     # Create directory if it did't exist before
     os.makedirs(file_dir, exist_ok=True)
     torch.save({
+        "Expect_rwd": tot_mean_rwd,
         "Cortex_acc": cortex_test_rwd_acc,
         "Striatal_acc": striatal_test_rwd_acc,
         "CSp_action_p": tot_CSp_action_p,
