@@ -60,17 +60,17 @@ class Striatum_lNN(nn.Module):
 
         ## .detach() to prevent rwds (dopamine) to shape striatal representations, but only readout to predict rewards
         #action_p = torch.sigmoid(self.l_rwd_output(IT_inpt ))
-        action_p = torch.sigmoid(self.l_rwd_output(IT_inpt))
+        target_action_p = torch.sigmoid(self.l_rwd_output(IT_inpt))
         action_pred_p = torch.sigmoid(self.l_habituation(thalamic_input_2))
 
         #action_p = self.l_rwd_output(x)
 
         ## --- Initialise distribution to sample from -----
-        d = Bernoulli(action_p)
+        d = Bernoulli(target_action_p)
         action = d.sample()
         self.p_action = d.log_prob(action)
 
-        return  action.to(torch.int64).squeeze(), action_pred_p, action_p.detach() # convert action to int (i.e., lick or no lick)
+        return  action.to(torch.int64).squeeze(), action_pred_p.squeeze(), target_action_p.detach().squeeze() # convert action to int (i.e., lick or no lick)
 
     def update(self, rwd, action_pred_p, target_action_p):
         """ update the newtork based on observed rwd"""

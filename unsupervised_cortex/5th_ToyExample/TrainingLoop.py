@@ -67,7 +67,7 @@ class TrainingLoop():
         self.IT_feedback = False
         self.ET_feedback = False
 
-    def train(self, ep, t_print=100):
+    def train(self, ep, t_print=20):
 
         train_cortex_rwd_loss = []
         train_striatal_rwd_loss = []
@@ -75,6 +75,17 @@ class TrainingLoop():
         train_n_hit = []
         train_n_CR = []
         t=0
+
+        train_CSp_action_p = []
+        train_CSm_action_p = []
+        tot_CSp_action_p = []
+        tot_CSm_action_p = []
+        tot_CSp_action_p.append(0.1)
+        tot_CSm_action_p.append(0.1)
+
+        tot_mean_rwd = []
+        tot_mean_rwd.append(self.mean_rwd)
+
 
         for d,l in self.training_data:
 
@@ -93,21 +104,26 @@ class TrainingLoop():
                 IT_features = torch.randn_like(IT_features).to(self.dev)
         
             # Striatum selects action
-            action, action_pred_p, action_p  = self.striatum(d, IT_features)
+            action, action_pred_p, target_action_p  = self.striatum(d, IT_features)
 
             # Compute rwd (i.e., rwd=1 for one class, rwd=0 for the other)
             CS_rwd = torch.floor(l/self.max_label) # generalise rwd function to any two class labels
 
-            ## -------- Compute n. hit and CR ------------
             CS_p_indx = CS_rwd == 1
             CS_m_indx = CS_rwd == 0
 
+            ## Store estimated action p for each CS
+            train_CSp_action_p.append(target_action_p[CS_p_indx].mean().item())
+            train_CSm_action_p.append(target_action_p[CS_m_indx].mean().item())
+
+            ## -------- Compute n. hit and CR ------------
             n_hit = torch.sum(action[CS_p_indx] ==1) / torch.sum(CS_p_indx)
             train_n_hit.append(n_hit.detach().item())
             #n_miss = torch.sum(action[CS_p_indx] ==0) / torch.sum(CS_p_indx)
             #n_FA = torch.sum(action[CS_m_indx] ==1) / torch.sum(CS_m_indx)
             n_CR = torch.sum(action[CS_m_indx] ==0) / torch.sum(CS_m_indx)
             train_n_CR.append(n_CR.detach().item())
+
 
             #rwd = CS_rwd * action # rwd delivery depends on the action, lick or no lick
 
@@ -120,7 +136,7 @@ class TrainingLoop():
             if self.ET_feedback:
                 #indx_a = action ==1 # update only mean rwd only when lick took place
                 #self.mean_rwd += torch.mean(0.005 * RPE[indx_a]) 
-                self.mean_rwd += torch.mean(0.005 * RPE)
+                self.mean_rwd = self.mean_rwd + torch.mean(0.005 * RPE)
                 #self.mean_rwd = 0.5
 
             RPE = RPE  * action # update only for action where lick took place
@@ -141,25 +157,34 @@ class TrainingLoop():
             ## -------- Train Striatum -------------
             if ep >= self.striatum_training_delay:
                 #RPE = rwd + cortical_rwd_pred.detach().squeeze()
-                superv_loss = self.striatum.update(RPE, action_pred_p, action_p)
+                superv_loss = self.striatum.update(RPE, action_pred_p, target_action_p)
                 train_striatal_sprvsd_loss.append(superv_loss)
                 train_striatal_rwd_loss.append(torch.mean((CS_rwd-action)**2).item())
             ## -----------------------------------
 
             t+=1
             if t % t_print == 0:
-                cortex_rwd_loss = None
-                if len(train_cortex_rwd_loss) !=0:
-                    cortex_rwd_loss = sum(train_cortex_rwd_loss)/len(train_cortex_rwd_loss)
-
                 striatal_rwd_loss = None
                 if len(train_striatal_rwd_loss) !=0:
+
+                    # Accuracy
                     striatal_rwd_loss = sum(train_striatal_rwd_loss)/len(train_striatal_rwd_loss)
                     striatal_sprvsd_loss = sum(train_striatal_sprvsd_loss)/len(train_striatal_sprvsd_loss)
+
+                    # Action p for each CS
+                    CSp_action_p = sum(train_CSp_action_p)/len(train_CSp_action_p)
+                    CSm_action_p = sum(train_CSm_action_p)/len(train_CSm_action_p)
+                    tot_CSp_action_p.append(CSp_action_p)
+                    tot_CSm_action_p.append(CSm_action_p)
+
+                    # n. hit and CR
                     striatal_n_hit = sum(train_n_hit)/len(train_n_hit)
                     striatal_n_CR = sum(train_n_CR)/len(train_n_CR)
 
-                logging.info(f"\n | Epoch: {ep} |  Step: {t} | Cortex rwd loss: {cortex_rwd_loss} | Striatal rwd loss: {striatal_rwd_loss} | Striatal supervised loss: {striatal_sprvsd_loss}")
+                    # mean rwd
+                    tot_mean_rwd.append(self.mean_rwd.clone().item())
+
+                logging.info(f"\n | Epoch: {ep} |  Step: {t} | Striatal rwd loss: {striatal_rwd_loss} | Striatal supervised loss: {striatal_sprvsd_loss}")
                 logging.info(f"| n. hit: {striatal_n_hit} | n. CR: {striatal_n_CR} | Mean action: {sum(action)/len(action)} | Mean rwd: {self.mean_rwd} \n |")
                 #print("Mean action: ", sum(action)/len(action))
                 #print("Mean rwd: ", self.mean_rwd, '\n')
@@ -167,6 +192,7 @@ class TrainingLoop():
                 train_striatal_rwd_loss = []
                 train_striatal_sprvsd_loss = []
 
+        return tot_CSp_action_p, tot_CSm_action_p, tot_mean_rwd 
 
 
     def test_performance(self, impairCortex_afterLearning=False):
@@ -176,6 +202,7 @@ class TrainingLoop():
 
         actions = []
         striatal_rwd_performance = []
+        cortex_rwd_performance = []
 
         with torch.no_grad():
             for d, l in self.test_data:
@@ -193,11 +220,13 @@ class TrainingLoop():
                     IT_features = torch.zeros_like(IT_features).to(self.dev)
 
                 
-                action, action_pred_p, _ = self.striatum(d, IT_features)
+                cortex_action, action_pred_p, _ = self.striatum(d, IT_features)
 
                 action = torch.round(action_pred_p.detach()).squeeze()
 
-                actions.append(sum(action)/len(action))
+                cortex_action = cortex_action.detach().squeeze()
+
+                actions.append((sum(action)/len(action)).item())
 
                 ## Get ET features
                 #cortical_rwd_pred, ET_features = self.ET(IT_features, action)
@@ -207,10 +236,12 @@ class TrainingLoop():
 
                 ## ------ Striatum rwd test performance ----------
                 striatal_rwd_acc = torch.sum((target_rwd == action)).item() /len(l) 
+                cortex_rwd_acc = torch.sum((target_rwd == cortex_action)).item() /len(l) 
                 striatal_rwd_performance.append(striatal_rwd_acc)
+                cortex_rwd_performance.append(cortex_rwd_acc)
                 ## ----------------------------------------------
 
-        return striatal_rwd_performance, actions
+        return striatal_rwd_performance, cortex_rwd_performance, actions
 
     def plot_imgs(self, n_images=15):
         """ Plot n. reconstructed test images together with true test images"""
