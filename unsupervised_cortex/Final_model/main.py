@@ -9,7 +9,7 @@ from TrainingLoop import TrainingLoop
  
 """ 
 In this Toy model, I model IT as CNN features of an encoder trained with unsuperivsed learning (by including a bottleneck and decoder for training IT features only), 
-, while I assume ET to track the expected reward across CS+ and CS- stimuli (i.e., based on a running average of the observed rewards)
+, while I assume ET to build a rwd prediction from the IT representations. 
 Crucially, the IT (CNN) network is pre-trained based on all classes and then loaded for the reward association task as it is, without undergoing any further training.
 The ET reward predictions are used as a baseline in the REINFORCE update to update the policy based on a reward prediction error
 """
@@ -34,6 +34,7 @@ setup_logger()
 dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
 ET_feedback = True
 IT_feedback = True
+cortex_ET_s = 256 # model cortex as a large (powerful) NN
 striatal_h_state = 20 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
@@ -54,8 +55,9 @@ max_label = np.max(specific_classes)
 
 # Initialise training loop
 trainingloop = TrainingLoop(dataset_name=dataset_name, training_data=training_data, test_data=test_data, n_labels=n_labels, 
-                            max_label=max_label, ET_ln_rate=ET_ln_rate, striatal_ln_rate=striatal_ln_rate,  
-                            striatal_h_state=striatal_h_state, IT_feedback=IT_feedback, ET_feedback=ET_feedback, device=dev)
+                            max_label=max_label, ET_ln_rate=ET_ln_rate, cortex_ET_s = cortex_ET_s, 
+                            striatal_ln_rate=striatal_ln_rate, striatal_h_state=striatal_h_state, 
+                            IT_feedback=IT_feedback, ET_feedback=ET_feedback, device=dev)
 
 tot_CSp_action_p = []
 tot_CSm_action_p = []

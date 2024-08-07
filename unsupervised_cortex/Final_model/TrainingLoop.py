@@ -2,6 +2,7 @@ import torch
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from CCN_cortex.IT_CNN import IT_CNN
+from ET_NN import ET_NN
 from Striatum_lNN import Striatum_lNN
 import logging
 import matplotlib.pyplot as plt
@@ -18,6 +19,7 @@ class TrainingLoop():
         n_labels,
         max_label,
         ET_ln_rate,
+        cortex_ET_s,
         striatal_ln_rate,
         striatal_h_state,
         IT_feedback,
@@ -50,11 +52,14 @@ class TrainingLoop():
         IT_model_dir = os.path.join(file_dir,f'{dataset_name}_IT_model.pt')
         self.IT.load_state_dict(torch.load(IT_model_dir,  map_location=self.dev))
 
-        IT_reps_s = self.IT.cnnOutput_size
+        # Initialise ET model
+        IT_reps_s = self.IT.cnnOutput_size 
+        self.ET = ET_NN(IT_input_s=IT_reps_s, ln_rate=ET_ln_rate).to(self.dev)
+        ET_reps_s = cortex_ET_s # 1 ## for now just pass the value as input
 
         self.striatum = Striatum_lNN(input_s=overall_img_s, IT_inpt_s=IT_reps_s, ln_rate=striatal_ln_rate, h_size=striatal_h_state, device=self.dev).to(self.dev)
 
-        self.mean_rwd = torch.tensor(0) # Initialise ET prediction of mean rwd
+        self.mean_rwd = torch.tensor(0)
 
     def _impair_cortex(self):
         """ Method to turn off cortical feedback to the Striatum"""
@@ -73,7 +78,6 @@ class TrainingLoop():
         train_CSm_action_p = []
         tot_CSp_action_p = []
         tot_CSm_action_p = []
-        # Initialise action probabilities base on observed NN initialisation (i.e., p(a=lick) = 0.1)
         tot_CSp_action_p.append(0.1)
         tot_CSm_action_p.append(0.1)
 
@@ -103,7 +107,6 @@ class TrainingLoop():
             # Compute rwd (i.e., rwd=1 for one class, rwd=0 for the other)
             CS_rwd = torch.floor(l/self.max_label) # generalise rwd function to any two class labels
 
-            # find index of CS+ and CS- trials 
             CS_p_indx = CS_rwd == 1
             CS_m_indx = CS_rwd == 0
 
@@ -127,9 +130,10 @@ class TrainingLoop():
 
 
             ## -------- Train Striatum -------------
-            superv_loss = self.striatum.update(RPE, action_pred_p, target_action_p)
-            train_striatal_sprvsd_loss.append(superv_loss)
-            train_striatal_rwd_loss.append(torch.mean((CS_rwd-action)**2).item())
+            if ep >= self.striatum_training_delay:
+                superv_loss = self.striatum.update(RPE, action_pred_p, target_action_p)
+                train_striatal_sprvsd_loss.append(superv_loss)
+                train_striatal_rwd_loss.append(torch.mean((CS_rwd-action)**2).item())
             ## -----------------------------------
 
             t+=1
