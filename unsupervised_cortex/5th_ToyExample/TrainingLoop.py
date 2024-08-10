@@ -3,6 +3,7 @@ import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from CCN_cortex.IT_CNN import IT_CNN
 from Striatum_lNN import Striatum_lNN
+from supervised_Striatum_lNN import supervised_Striatum_lNN
 import logging
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -53,6 +54,9 @@ class TrainingLoop():
         IT_reps_s = self.IT.cnnOutput_size
 
         self.striatum = Striatum_lNN(input_s=overall_img_s, IT_inpt_s=IT_reps_s, ln_rate=striatal_ln_rate, h_size=striatal_h_state, device=self.dev).to(self.dev)
+
+        ## Initialise a supervised striatal network just to see if also learn to lick all the time if only update CS+ stim
+        self.striatum_spvd = supervised_Striatum_lNN(IT_inpt_s=IT_reps_s, ln_rate=striatal_ln_rate, h_size=striatal_h_state, device=self.dev).to(self.dev)
 
         self.mean_rwd = torch.tensor(0) # Initialise ET prediction of mean rwd
 
@@ -122,6 +126,7 @@ class TrainingLoop():
             # Update ET mean rwd prediction if have access to ET 
             if self.ET_feedback:
                 self.mean_rwd = self.mean_rwd + torch.mean(self.ET_ln_rate * RPE)
+                #self.mean_rwd = torch.tensor(0.1)
 
             RPE = RPE  * action # update only for action where lick took place
 
@@ -131,6 +136,18 @@ class TrainingLoop():
             train_striatal_sprvsd_loss.append(superv_loss)
             train_striatal_rwd_loss.append(torch.mean((CS_rwd-action)**2).item())
             ## -----------------------------------
+
+            ## -------- Supervised Striatum (for anlaysis only) ------
+            # Here I just want to double check that if we update the striatum only with CS+ targets with supervised learning
+            # the striatum learns to lick all the time for both CS+ and CS-, this should be obvious since we only provide one target
+            # and the network should collapse to outputting the same target for all stimuli (i.e., need negative samples)
+            #action_p = self.striatum_spvd(IT_features)
+            #action_CS_p = action_p[CS_p_indx] 
+            #l_CS_p = l[CS_p_indx]
+            #self.striatum_spvd.update(action_CS_p, l_CS_p)
+            #if t % t_print == 0:
+            #    print(" \n Supervised striatum: ", torch.mean(action_p))
+            ## --------------------------------------
 
             t+=1
             if t % t_print == 0:
@@ -153,6 +170,7 @@ class TrainingLoop():
 
                     # mean rwd
                     tot_mean_rwd.append(self.mean_rwd.clone().item())
+
 
                 logging.info(f"\n | Epoch: {ep} |  Step: {t} | Striatal rwd loss: {striatal_rwd_loss} | Striatal supervised loss: {striatal_sprvsd_loss}")
                 logging.info(f"| n. hit: {striatal_n_hit} | n. CR: {striatal_n_CR} | Mean action: {sum(action)/len(action)} | Mean rwd: {self.mean_rwd} \n |")

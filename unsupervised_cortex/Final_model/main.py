@@ -34,15 +34,15 @@ setup_logger()
 dataset_name = "cifar10" #"synthetic_data" #mnist" #"cifar10"
 ET_feedback = True
 IT_feedback = True
-cortex_ET_s = 256 # model cortex as a large (powerful) NN
-striatal_h_state = 20 # model striatum as a small (linear) NN
+cortex_ET_s = 56 # model cortex as a large (powerful) NN
+striatal_h_state = 56 # model striatum as a small (linear) NN
 impairCortex_afterLearning = False # At the moment assessed on test data
 specific_classes = [0,1] # only ask two discriminate between two classes
 
 # Training variables
 epocs = 50
 batch_s = 64
-ET_ln_rate = 0.005
+ET_ln_rate = 0.0001
 striatal_ln_rate = 1e-4 #1e-3 #1e-5
 
 
@@ -89,7 +89,7 @@ logging.info(f"*** | Striatal test rwd accuracy:  {striatal_test_rwd_acc*100}% |
 file_dir = os.path.dirname(os.path.abspath(__file__))
 file_dir = os.path.join(file_dir,'results')
 
-data = f'{dataset_name}_LickData'
+data = f'Final_{dataset_name}_LickData'
 if not ET_feedback:
     data += '_noET_'
 if not IT_feedback:    

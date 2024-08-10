@@ -6,7 +6,10 @@ from torch.distributions.bernoulli import Bernoulli
 class Striatum_lNN(nn.Module):
 
     def __init__(self, input_s, IT_inpt_s, ln_rate, h_size, device):
-        """ Implement a Striatal network as a linear neural network, lNN, trying to predict the rwd """
+        """ 
+        Implement a first Striatal network, trained with REINFORCE to output action prob based on IT inputs, initialise a secondary network that
+        learns mimic the first network with supervised learning without using IT inputs (i.e., independent of cortex)  
+        """
 
         super().__init__()
 
@@ -15,8 +18,7 @@ class Striatum_lNN(nn.Module):
         self.dev = device
 
         # Striatum takes input x, IT input and ET input, initialise different synaptic weights for each
-        self.W_thalamus_1 = nn.Linear(input_s, h_size)
-        self.W_thalamus_2 = nn.Linear(input_s, 5*h_size)
+        self.W_thalamus = nn.Linear(input_s, 5*h_size)
 
         self.W_IT = nn.Linear(self.IT_inpt_s, h_size)
 
@@ -28,9 +30,6 @@ class Striatum_lNN(nn.Module):
         with torch.no_grad():
             self.l_rwd_output.bias.copy_(torch.randn(1) * 0.1 - 2 *torch.ones(1))
 
-        #self.l_rwd_output = nn.Linear(h_size, 1) 
-        #self.l_rwd_output = nn.Linear(h_size+IT_inpt_s, 1) 
-
         # Define optimizer
         self.optimizer = opt.Adam(self.parameters(),ln_rate)
 
@@ -39,31 +38,17 @@ class Striatum_lNN(nn.Module):
 
     def small_weight_init(self,l):
         if isinstance(l,nn.Linear):
-            #nn.init.normal_(l.weight,mean=0,std= 0.000005)# std= 0.00005
             nn.init.normal_(l.bias,mean=-1,std= 0.1)#  std= 0.00005
 
     def forward(self, thalamic_input, IT_inpt):
-        """ Process the cortical inputs through the two separate striatal components, then unify the two to make a prediction"""
+        """ Process the cortical inputs and the thalamic input through the separate striatal components"""
 
-        # Concatenate input with 1st layer cortical reprs. , while reshaping in appropriate shape
-        #thalamic_input_1 = torch.relu(self.W_thalamus_1(thalamic_input.view(-1,self.thalamic_input_s)))
-        thalamic_input_2 = torch.relu(self.W_thalamus_2(thalamic_input.view(-1,self.thalamic_input_s)))
+        thalamic_input = torch.relu(self.W_thalamus(thalamic_input.view(-1,self.thalamic_input_s)))
 
         IT_inpt = torch.relu(self.W_IT(IT_inpt.view(-1,self.IT_inpt_s)))
 
-        #IT_inpt = IT_inpt.view(-1,self.IT_inpt_s)
-
-        ## concatenate all striatal inputs
-        #x = torch.cat([thalamic_input_1, IT_inpt],dim=-1)
-
-        #x = torch.relu(self.l1(x))
-
-        ## .detach() to prevent rwds (dopamine) to shape striatal representations, but only readout to predict rewards
-        #action_p = torch.sigmoid(self.l_rwd_output(IT_inpt ))
         target_action_p = torch.sigmoid(self.l_rwd_output(IT_inpt))
-        action_pred_p = torch.sigmoid(self.l_habituation(thalamic_input_2))
-
-        #action_p = self.l_rwd_output(x)
+        action_pred_p = torch.sigmoid(self.l_habituation(thalamic_input))
 
         ## --- Initialise distribution to sample from -----
         d = Bernoulli(target_action_p)
