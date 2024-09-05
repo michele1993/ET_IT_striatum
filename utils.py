@@ -87,6 +87,15 @@ def generate_20DGauss_data(n_training_samples, n_test_samples, specific_classes)
     test_data = torch.tensor(test_data, dtype=torch.float32)
     test_labels = torch.tensor(test_labels, dtype=torch.float32)
 
+    # define correct label based on selected class number
+    # so that uses same lebel system as mnist and cifar10
+    if specific_classes is not None:
+        training_labels[training_labels==0] = specific_classes[0]
+        training_labels[training_labels==1] = specific_classes[1]
+        test_labels[test_labels==0] = specific_classes[0]
+        test_labels[test_labels==1] = specific_classes[1]
+        
+
     # return training and test data in format suitable for dataloader, plus n_labels
     return list(zip(training_data, training_labels)), list(zip(test_data, test_labels)), len(means)
 
@@ -135,7 +144,7 @@ def get_data(dataset_name='mnist',batch_s=64, specific_classes=None):
         n_labels = len(training_data.classes)
     
     elif dataset_name == 'synthetic_data':
-        training_data, test_data, n_labels = generate_20DGauss_data(n_training_samples=800,n_test_samples=80,specific_classes=specific_classes)
+        training_data, test_data, n_labels = generate_20DGauss_data(n_training_samples=1000,n_test_samples=100,specific_classes=specific_classes)
 
     else:
         raise NotImplementedError(f" {dataset_name} is an unknown dataset")
