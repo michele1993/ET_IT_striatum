@@ -13,7 +13,7 @@ Final value-based model
 """
 
 ## ---- Set seed for reproducibility purposes
-save_file = True
+save_file = False
 seeds = [62419, 87745, 55327, 31023, 21716]
 
 # Select correct device
@@ -29,21 +29,32 @@ setup_logger()
 ## Experiment variables
 dataset_name = "synthetic_data" #"synthetic_data" #mnist" #"cifar10"
 ET_feedback = True
-IT_feedback = False
+IT_feedback = True
 striatal_h_state = 116 # model striatum as a small (linear) NN
-specific_classes = [0,2]#[0,1] #[0,2] # only ask two discriminate between two classes
+class_comp = 0
+
+if class_comp == 0: # Main analysis based on this comparison
+    specific_classes = [0,2] # main comparison
+# Pick 3 other class comparison to show amount of IT overlap affects learning performances
+elif class_comp ==1:
+    specific_classes = [0,1] # class 0 and 1 highly overlap in IT space
+elif class_comp ==2:
+    specific_classes = [0,4] # class 0 and 4 do not overlap in IT space
+elif class_comp == 3: 
+    specific_classes = [0,5] # class 0 and 5 partially overlap
+else:
+    specific_classes = None
 
 # Training variables
-epocs = 25#50
+epocs = 20
 batch_s = 50
-striatal_ln_rate = 4e-5#9e-6 #1e-5 #1e-3 #1e-5
+striatal_ln_rate = 3.5e-5#9e-6 #1e-5 #1e-3 #1e-5
 
 for s in seeds:
     torch.manual_seed(s)
     np.random.seed(s)
 
     # Get data organised in batches 
-    assert specific_classes is not None, "The reward function only works for two specific classess"
     training_data, test_data, n_labels = get_data(dataset_name=dataset_name,batch_s=batch_s, specific_classes=specific_classes)
 
     # Allows to use correct rwd function depending on
@@ -92,7 +103,7 @@ for s in seeds:
     file_dir = os.path.dirname(os.path.abspath(__file__))
     file_dir = os.path.join(file_dir,'results','data')
 
-    data = f'VB_{dataset_name}_LickData_seed_{s}'
+    data = f'VB_{dataset_name}_LickData_seed_{s}_class{class_comp}'
     if not ET_feedback:
         data += '_noET_'
     if not IT_feedback:    

@@ -34,7 +34,7 @@ dataset_name = "synthetic_data" #"synthetic_data" #mnist" #"cifar10"
 specific_classes = None #[0,1] # only ask two discriminate between two classes
 
 # Training variables
-epocs = 100
+epocs = 1000
 batch_s = 64
 cortex_ln_rate = 5e-4
 

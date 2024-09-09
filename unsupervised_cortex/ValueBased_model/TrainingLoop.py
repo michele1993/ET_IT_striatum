@@ -8,6 +8,7 @@ import logging
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
+from torch.distributions import Bernoulli
 
 class TrainingLoop():
 
@@ -32,7 +33,8 @@ class TrainingLoop():
         self.IT_feedback = IT_feedback
         self.ET_feedback = ET_feedback
         self.dev = device
-        self.No_IT_noise_mean = 1.75# 0.75
+        self.No_IT_noise_mean = 0#1.75# 0.75
+        self.No_IT_noise_std = 5 #2.5
 
         # Extra n. of channels, width and n. labels for the specific dataset
         data_batch, _ = next(iter(self.training_data))
@@ -58,7 +60,7 @@ class TrainingLoop():
         self.IT.load_state_dict(torch.load(IT_model_dir,  map_location=self.dev))
 
         # Initialise Striatum
-        self.striatum = Striatum_lNN(input_s=input_s, IT_inpt_s=IT_reps_s, ln_rate=striatal_ln_rate, h_size=striatal_h_state).to(self.dev)
+        self.striatum = Striatum_lNN(input_s=input_s, IT_inpt_s=IT_reps_s, ln_rate=striatal_ln_rate, h_size=striatal_h_state, thalamic_input_lr=striatal_ln_rate).to(self.dev) #, thalamic_input_lr=striatal_ln_rate
 
 
     def train(self, ep, t_print=10):
@@ -89,7 +91,7 @@ class TrainingLoop():
             ## blocked IT cells
             if not self.IT_feedback:
                 #IT_features = torch.zeros_like(IT_features).to(self.dev)
-                IT_features = self.No_IT_noise_mean + 0.01 * torch.randn_like(IT_features).to(self.dev)
+                IT_features = self.No_IT_noise_mean + self.No_IT_noise_std * torch.randn_like(IT_features).to(self.dev)
         
             # Striatum selects action
             striatal_rwd_pred, noCortex_rwd_pred = self.striatum(d, IT_features)
@@ -104,7 +106,10 @@ class TrainingLoop():
             if self.ET_feedback:
                 RPE_grad = -1 * (CS_rwd - striatal_rwd_pred) # true RPE grad
             else:
-                RPE_grad = -1 * CS_rwd # without ET, the RPE grad does not include the striatal_rwd_pred
+                # without ET, the RPE grad does not include the striatal_rwd_pred
+                # Add a bit of mean positive noise when ET not present (positive since rwd positive)
+                RPE_grad = -1 * (CS_rwd - (0.25 + 1.25 * torch.randn_like(CS_rwd))) 
+                #RPE_grad = -1 * (CS_rwd - torch.clip(1.25 * torch.randn_like(CS_rwd),0,1)) # without ET, the RPE grad does not include the striatal_rwd_pred
 
             no_cortex_loss = self.striatum.update(striatal_rwd_pred, noCortex_rwd_pred, RPE_grad)
 
@@ -164,16 +169,28 @@ class TrainingLoop():
 
                 ## Pass a zero vector as cortical input to striatum to mimic blocked IT cells
                 if not self.IT_feedback:
-                    IT_features = self.No_IT_noise_mean + torch.randn_like(IT_features).to(self.dev)
+                    IT_features = self.No_IT_noise_mean + self.No_IT_noise_std * torch.randn_like(IT_features).to(self.dev)
 
-                
                 cortexDep_rwd_pred, noCortex_rwd_pred = self.striatum(d, IT_features)
+                #print(cortexDep_rwd_pred)
+                #print(target_rwd)
+                #exit()
+                ## ---- Compute licking prob --------
+                # To compute licking prob we assume value predictions get pushed through
+                # a steep sigmoid centered at 0.5, so that for values < 0.5 it outputs a low p of licking
+                # and for values > 0.5 outputs high p of licking, while for values = 0.5, p of licking = 0.5
+                cortexDep_rwd_pred = torch.sigmoid(10*(cortexDep_rwd_pred - 0.5))
+                noCortex_rwd_pred = torch.sigmoid(10*(noCortex_rwd_pred - 0.5))
 
-
+                ## ----- Sample lick --------
+                d_cortex = Bernoulli(cortexDep_rwd_pred)#.unsqueeze(1))
+                d_noCortex = Bernoulli(noCortex_rwd_pred)#.unsqueeze(1))
+                cortexDep_lick_p = d_cortex.sample()
+                noCortex_lick_p = d_cortex.sample()
 
                 ## ------ Striatum rwd test performance ----------
-                cortexDep_rwd_acc = torch.sum((target_rwd == torch.round(cortexDep_rwd_pred.detach()))).item() /len(l)
-                noCortex_rwd_acc = torch.sum((target_rwd == torch.round(noCortex_rwd_pred.detach()))).item() /len(l)
+                cortexDep_rwd_acc = torch.sum((target_rwd == cortexDep_lick_p)).item() /len(l)
+                noCortex_rwd_acc = torch.sum((target_rwd == noCortex_lick_p)).item() /len(l)
                 cortexDep_rwd_performance.append(cortexDep_rwd_acc)
                 noCortex_rwd_performance.append(noCortex_rwd_acc)
                 ## ----------------------------------------------
