@@ -15,7 +15,11 @@ from unsupervised_cortex.ValueBased_model.Striatum_lNN import Striatum_lNN
 
 
 
-seeds = [62419, 87745, 55327, 31023, 21716]
+seeds_1 = [62419, 87745, 55327, 31023, 21716]
+seeds_2 = [91207, 61790, 12391, 57053, 81513]
+seeds = seeds_1 + seeds_2
+
+stde_norm = np.sqrt(len(seeds))
 
 font_s =7
 mpl.rc('font', size=font_s)
@@ -25,7 +29,7 @@ mpl.rcParams['ytick.labelsize'] = font_s
 
 # Create a figure and a set of subplots
 fig, axs = plt.subplots(4, 3, figsize=(7, 6.5),#subplot_kw=dict(projection='3d'),
-                        gridspec_kw={'wspace': 0.65, 'hspace': 0.8, 'left': 0.075, 'right': 0.95, 'bottom': 0.1,'top': 0.94})
+                        gridspec_kw={'wspace': 0.65, 'hspace': 0.8, 'left': 0.09, 'right': 0.98, 'bottom': 0.1,'top': 0.94})
 
 
 
@@ -49,7 +53,7 @@ NoET_IT_lick_CSm  = lick_rate[3][1].mean(axis=1)
 
 ## normalise lick rate between 0 and 1 by diving by max lick rate across all conditions
 ## this occured in the no ET CS+ condition
-normaliser = np.max(NoET_lick_CSp)
+normaliser = 5 # np.max(NoET_lick_CSp) ## norm by 5Hz closest interger to max lick rate
 
 Healthy_lick_CSp /= normaliser
 Healthy_lick_CSm /= normaliser
@@ -85,8 +89,9 @@ striatal_acc_NoIT = []
 # Initialise all classes comparisons
 all_classes_comp = [[0,2],[0,1],[0,4],[0,5]]
 class_comp = 0
+specific_classes = all_classes_comp[0]
 for s in seeds:
-    data_1 = f'data/VB_{dataset_name}_LickData_seed_{s}_class{class_comp}'
+    data_1 = f'data/VB_{dataset_name}_LickData_seed_{s}_class_{specific_classes[0]}_vs_{specific_classes[1]}'
     data_2 = data_1 + '_noET_.pt'
     data_3 = data_1 + '_noIT_.pt'
     data_4 = data_1 + '_noET__noIT_.pt'
@@ -129,6 +134,17 @@ NoIT_CSm_val = np.array(NoIT_CSm_val)[:,indx_learning_stages]
 NoET_IT_CSp_val = np.array(NoET_IT_CSp_val)[:,indx_learning_stages]
 NoET_IT_CSm_val = np.array(NoET_IT_CSm_val)[:,indx_learning_stages]
 
+## Insert baseline at trial zero since saved results from averaged of first 100 trials
+Healthy_CSp_val[:,0] = 0
+Healthy_CSm_val[:,0] = 0
+NoET_CSp_val[:,0] = 0
+NoET_CSm_val[:,0] = 0
+NoIT_CSp_val[:,0] = 0
+NoIT_CSm_val[:,0] = 0
+NoET_IT_CSp_val[:,0] = 0
+NoET_IT_CSm_val[:,0] = 0
+
+
 Healthy_noCortex_acc = np.array(Healthy_noCortex_acc) * 100
 Healthy_cortexDep_acc = np.array(Healthy_cortexDep_acc) * 100
 striatal_acc_NoET = np.array(striatal_acc_NoET) * 100
@@ -137,39 +153,39 @@ striatal_acc_NoIT = np.array(striatal_acc_NoIT) * 100
 ## Compute mean and std
 # Healthy
 Healthy_CSp_val_mean = np.mean(Healthy_CSp_val, axis=0) 
-Healthy_CSp_val_std = np.std(Healthy_CSp_val, axis=0) 
+Healthy_CSp_val_std = np.std(Healthy_CSp_val, axis=0)/ stde_norm 
 Healthy_CSm_val_mean = np.mean(Healthy_CSm_val, axis=0) 
-Healthy_CSm_val_std = np.std(Healthy_CSm_val, axis=0) 
+Healthy_CSm_val_std = np.std(Healthy_CSm_val, axis=0)/ stde_norm 
 
 # No ET
 NoET_CSp_val_mean = np.mean(NoET_CSp_val, axis=0) 
-NoET_CSp_val_std = np.std(NoET_CSp_val, axis=0) 
+NoET_CSp_val_std = np.std(NoET_CSp_val, axis=0)/ stde_norm 
 NoET_CSm_val_mean = np.mean(NoET_CSm_val, axis=0) 
-NoET_CSm_val_std = np.std(NoET_CSm_val, axis=0) 
+NoET_CSm_val_std = np.std(NoET_CSm_val, axis=0)/ stde_norm 
 
 # No IT
 NoIT_CSp_val_mean = np.mean(NoIT_CSp_val, axis=0) 
-NoIT_CSp_val_std = np.std(NoIT_CSp_val, axis=0) 
+NoIT_CSp_val_std = np.std(NoIT_CSp_val, axis=0)/ stde_norm 
 NoIT_CSm_val_mean = np.mean(NoIT_CSm_val, axis=0) 
-NoIT_CSm_val_std = np.std(NoIT_CSm_val, axis=0) 
+NoIT_CSm_val_std = np.std(NoIT_CSm_val, axis=0)/ stde_norm 
 
 # No ET and IT
 NoET_IT_CSp_val_mean = np.mean(NoET_IT_CSp_val, axis=0) 
-NoET_IT_CSp_val_std = np.std(NoET_IT_CSp_val, axis=0) 
+NoET_IT_CSp_val_std = np.std(NoET_IT_CSp_val, axis=0)/ stde_norm 
 NoET_IT_CSm_val_mean = np.mean(NoET_IT_CSm_val, axis=0) 
-NoET_IT_CSm_val_std = np.std(NoET_IT_CSm_val, axis=0) 
+NoET_IT_CSm_val_std = np.std(NoET_IT_CSm_val, axis=0)/ stde_norm 
 
 # Cortex independent expert performance for healthy 
 Healthy_noCortex_acc_mean = np.mean(Healthy_noCortex_acc, axis=0) 
-Healthy_noCortex_acc_std = np.std(Healthy_noCortex_acc, axis=0) 
+Healthy_noCortex_acc_std = np.std(Healthy_noCortex_acc, axis=0)/ stde_norm 
 Healthy_cortexDep_acc_mean = np.mean(Healthy_cortexDep_acc, axis=0) 
-Healthy_cortexDep_acc_std = np.std(Healthy_cortexDep_acc, axis=0) 
+Healthy_cortexDep_acc_std = np.std(Healthy_cortexDep_acc, axis=0)/ stde_norm 
 
 striatal_acc_NoET_mean = np.mean(striatal_acc_NoET, axis=0) 
-striatal_acc_NoET_std = np.std(striatal_acc_NoET, axis=0) 
+striatal_acc_NoET_std = np.std(striatal_acc_NoET, axis=0)/ stde_norm 
 
 striatal_acc_NoIT_mean = np.mean(striatal_acc_NoIT, axis=0) 
-striatal_acc_NoIT_std = np.std(striatal_acc_NoIT, axis=0) 
+striatal_acc_NoIT_std = np.std(striatal_acc_NoIT, axis=0) / stde_norm 
 
 ## =========== Plotting ================
 CS_colors = ['tab:cyan','tab:olive']
@@ -177,7 +193,7 @@ CS_colors = ['tab:cyan','tab:olive']
 #t = np.arange(0, len(Healthy_CSp_val[0]))
 #conditions = ['start', 'early', 'mid', 'late', 'expert']
 conditions = [0,1,2,3,4,5]
-titles = ['Healthy', 'No IT', 'No ET'] 
+titles = ['Control', 'No IT', 'No ET'] 
 
 CSp_val = [Healthy_CSp_val_mean, NoIT_CSp_val_mean, NoET_CSp_val_mean]
 CSm_val = [Healthy_CSm_val_mean, NoIT_CSm_val_mean, NoET_CSm_val_mean]
@@ -191,15 +207,22 @@ CSm_lick_rate = [Healthy_lick_CSm, NoIT_lick_CSm, NoET_lick_CSm]
 
 # Plot CS+ vs CS-  across conditions
 for j in range(3):
-    axs[0,j].plot([1,2,3,4,5], CSp_lick_rate[j], color=CS_colors[0], alpha=0.8, label='CS+\n(exp)')
-    axs[0,j].plot([1,2,3,4,5], CSm_lick_rate[j], color=CS_colors[1], alpha=0.8, label='CS-\n(exp)')
-    axs[0, j].errorbar(conditions, CSp_val[j], yerr=CSp_val_std[j], color=CS_colors[0], label='CS+\n(model)',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
-    axs[0, j].errorbar(conditions, CSm_val[j], yerr=CSm_val_std[j], color=CS_colors[1], label='CS-\n(model)',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
+    # Plot mice data
+    axs[0,j].plot([1,2,3,4,5], CSp_lick_rate[j], color=CS_colors[0], alpha=0.8, label='CS+\n(mice)')
+    axs[0,j].plot([1,2,3,4,5], CSm_lick_rate[j], color=CS_colors[1], alpha=0.8, label='CS-\n(mice)')
+    # Plot model predictions
+    axs[0, j].plot(conditions, CSp_val[j], linestyle='dashed', color=CS_colors[0], label='CS+\n(model)', marker='o', markersize=4,alpha=0.75)
+    axs[0, j].fill_between(conditions, CSp_val[j] - CSp_val_std[j], CSp_val[j] + CSp_val_std[j], alpha=0.25, color=CS_colors[0])
+    axs[0, j].plot(conditions, CSm_val[j], linestyle='dashed', color=CS_colors[1], label='CS-\n(model)', marker='o', markersize=4,alpha=0.75)
+    axs[0, j].fill_between(conditions, CSm_val[j] - CSm_val_std[j], CSm_val[j] + CSm_val_std[j], alpha=0.25, color=CS_colors[1])
+    #axs[0, j].errorbar(conditions, CSp_val[j], yerr=CSp_val_std[j], color=CS_colors[0], label='CS+\n(model)',capsize=3,fmt="--o",ecolor="black",markersize=4,alpha=0.5)
+    #xs[0, j].errorbar(conditions, CSm_val[j], yerr=CSm_val_std[j], color=CS_colors[1], label='CS-\n(model)',capsize=3,fmt="--o",ecolor="black",markersize=4,alpha=0.5)
+
     axs[0, j].set_title(titles[j])
     if j!=0:
         axs[0, j].set_xlabel('Training sessions')
     if j==0:
-        axs[0, j].set_ylabel('Association strength')
+        axs[0, j].set_ylabel('Association strength \n normalised lick rate (Hz)')
         #axs[0,j].set_xticks([])
     axs[0,j].spines['top'].set_visible(False)
     axs[0,j].spines['right'].set_visible(False)
@@ -208,13 +231,20 @@ for j in range(3):
     #axs[0,j].set_yticks([0, 20, 40, 60, 80, 100])  # Example custom y-ticks
 axs[0,0].legend(loc='lower left', bbox_to_anchor=(-0.1, -0.6), frameon=False,fontsize=font_s, ncol=4,  columnspacing=0.8)
 
-axs[1, 0].errorbar(conditions, NoET_IT_CSp_val_mean, yerr=NoET_IT_CSp_val_std, color=CS_colors[0], label='CS+',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
-axs[1, 0].errorbar(conditions, NoET_IT_CSm_val_mean, yerr=NoET_IT_CSm_val_std, color=CS_colors[1], label='CS+',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
+# Plot mice data
 axs[1,0].plot([1,2,3,4,5], NoET_IT_lick_CSp, color=CS_colors[0], alpha=0.8)
 axs[1,0].plot([1,2,3,4,5], NoET_IT_lick_CSm, color=CS_colors[1], alpha=0.8)
+# Plot model predictions
+axs[1, 0].plot(conditions, NoET_IT_CSp_val_mean, linestyle='dashed', color=CS_colors[0], label='CS+\n(model)', marker='s', markersize=4,alpha=0.75)
+axs[1, 0].fill_between(conditions, NoET_IT_CSp_val_mean - NoET_IT_CSp_val_std, NoET_IT_CSp_val_mean  + NoET_IT_CSp_val_std, alpha=0.25, color=CS_colors[0])
+axs[1, 0].plot(conditions, NoET_IT_CSm_val_mean, linestyle='dashed', color=CS_colors[1], label='CS-\n(model)', marker='s', markersize=4,alpha=0.75)
+axs[1, 0].fill_between(conditions, NoET_IT_CSm_val_mean - NoET_IT_CSm_val_std, NoET_IT_CSm_val_mean  + NoET_IT_CSm_val_std, alpha=0.25, color=CS_colors[1])
+#axs[1, 0].errorbar(conditions, NoET_IT_CSp_val_mean, yerr=NoET_IT_CSp_val_std, color=CS_colors[0], label='CS+',capsize=3,fmt="--o",ecolor="black",markersize=4,alpha=0.5)
+#axs[1, 0].errorbar(conditions, NoET_IT_CSm_val_mean, yerr=NoET_IT_CSm_val_std, color=CS_colors[1], label='CS+',capsize=3,fmt="--o",ecolor="black",markersize=4,alpha=0.5)
+
 axs[1,0].set_title("No S1")
 axs[1,0].set_xlabel('Training sessions')
-axs[1,0].set_ylabel('Association strength')
+axs[1,0].set_ylabel('Association strength \n normalised lick rate (Hz)')
 axs[1,0].spines['top'].set_visible(False)
 axs[1,0].spines['right'].set_visible(False)
 axs[1,0].set_ylim(0, 1)  # Example range from 0 to 20
@@ -223,7 +253,7 @@ axs[1,0].set_xlim(0, 5)
 ## ---------- Plot striatum accuracy without cortex --------
 acc = [Healthy_noCortex_acc_mean, Healthy_cortexDep_acc_mean]
 acc_std = [Healthy_noCortex_acc_std, Healthy_cortexDep_acc_std]
-categoris = ['No Cortex', 'Cortex']
+categoris = ['No S1', 'S1']
 axs[1,1].bar(categoris, acc,  color='tab:gray', alpha=0.75)
 axs[1,1].errorbar(categoris,acc, yerr=acc_std, ls='none', color='black',  elinewidth=0.75, capsize=1.5) # ecolor='lightslategray',
 axs[1,1].set_title('Expert performance')
@@ -415,8 +445,9 @@ class_CSm_std = []
 for c in class_plot_order:
     seed_CSp_val = []
     seed_CSm_val = []
+    specific_classes = all_classes_comp[c]
     for s in seeds:
-        data_1 = f'data/VB_{dataset_name}_LickData_seed_{s}_class{c}.pt'
+        data_1 = f'data/VB_{dataset_name}_LickData_seed_{s}_class_{specific_classes[0]}_vs_{specific_classes[1]}.pt'
         data_1 = torch.load(data_1)
 
         ## Extract values
@@ -425,8 +456,8 @@ for c in class_plot_order:
     
     class_CSp_mean.append(np.mean(seed_CSp_val,axis=0))
     class_CSm_mean.append(np.mean(seed_CSm_val,axis=0))
-    class_CSp_std.append(np.std(seed_CSp_val,axis=0))
-    class_CSm_std.append(np.std(seed_CSm_val,axis=0))
+    class_CSp_std.append(np.std(seed_CSp_val,axis=0)/ stde_norm)
+    class_CSm_std.append(np.std(seed_CSm_val,axis=0)/ stde_norm)
 
 class_CSp_mean = np.array(class_CSp_mean)[:,indx_learning_stages]
 class_CSm_mean = np.array(class_CSm_mean)[:,indx_learning_stages]
@@ -435,11 +466,14 @@ class_CSm_std = np.array(class_CSm_std)[:,indx_learning_stages]
 
 # Plot CS+ vs CS-  across stimuli
 for j in range(3):
-    axs[3, j].errorbar(conditions, class_CSp_mean[j], yerr=class_CSp_std[j], color=CS_colors[0], label='CS+\n(model)',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
-    axs[3, j].errorbar(conditions, class_CSm_mean[j], yerr=class_CSm_std[j], color=CS_colors[1], label='CS-\n(model)',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
+    axs[3, j].plot(conditions, class_CSp_mean[j], linestyle='dashed', color=CS_colors[0], label='CS+\n(model)',marker='o', markersize=4, alpha=0.75)
+    axs[3, j].fill_between(conditions, class_CSp_mean[j] - class_CSp_std[j], class_CSp_mean[j] + class_CSp_std[j], alpha=0.25, color=CS_colors[0])
+    axs[3, j].plot(conditions, class_CSm_mean[j], linestyle='dashed', color=CS_colors[1], label='CS+\n(model)',marker='o', markersize=4, alpha=0.75)
+    axs[3, j].fill_between(conditions, class_CSm_mean[j] - class_CSm_std[j], class_CSm_mean[j] + class_CSm_std[j], alpha=0.25, color=CS_colors[1])
+    #axs[3, j].errorbar(conditions, class_CSp_mean[j], yerr=class_CSp_std[j], color=CS_colors[0], label='CS+\n(model)',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
+    #axs[3, j].errorbar(conditions, class_CSm_mean[j], yerr=class_CSm_std[j], color=CS_colors[1], label='CS-\n(model)',capsize=3,fmt="r--o",ecolor="black",markersize=4,alpha=0.5)
     axs[3, j].set_title('Peformance \n'+titles[j])
-    if j!=0:
-        axs[3, j].set_xlabel('Training sessions')
+    axs[3, j].set_xlabel('Training sessions')
     if j==0:
         axs[3, j].set_ylabel('Association strength')
         #axs[0,j].set_xticks([])
@@ -448,7 +482,6 @@ for j in range(3):
     axs[3,j].set_ylim(0, 1)  # Example range from 0 to 20
     axs[3,j].set_xlim(0, 5)  
 
-print(class_CSm_mean.shape)
 
 # 3D plot
 #fig = plt.figure()
@@ -477,7 +510,8 @@ plt.show()
 #plt.tight_layout()
 
 # Display the plot
-#plt.savefig('/Users/px19783/Desktop/VB_ET_IT_draft', format='png', dpi=1400)
+#plt.savefig('/Users/px19783/Desktop/VB_ET_IT_draft.eps', format='eps', dpi=1400)
+#plt.savefig('/Users/px19783/Desktop/VB_ET_IT_draft.png', format='png', dpi=1400)
 
  
 

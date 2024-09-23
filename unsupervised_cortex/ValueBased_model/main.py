@@ -14,7 +14,10 @@ Final value-based model
 
 ## ---- Set seed for reproducibility purposes
 save_file = False
-seeds = [62419, 87745, 55327, 31023, 21716]
+seeds_1 = [62419, 87745, 55327, 31023, 21716]
+seeds_2 = [91207, 61790, 12391, 57053, 81513]
+
+seeds = seeds_1 + seeds_2
 
 # Select correct device
 if torch.cuda.is_available():
@@ -31,24 +34,20 @@ dataset_name = "synthetic_data" #"synthetic_data" #mnist" #"cifar10"
 ET_feedback = True
 IT_feedback = True
 striatal_h_state = 116 # model striatum as a small (linear) NN
-class_comp = 0
 
-if class_comp == 0: # Main analysis based on this comparison
-    specific_classes = [0,2] # main comparison
-# Pick 3 other class comparison to show amount of IT overlap affects learning performances
-elif class_comp ==1:
-    specific_classes = [0,1] # class 0 and 1 highly overlap in IT space
-elif class_comp ==2:
-    specific_classes = [0,4] # class 0 and 4 do not overlap in IT space
-elif class_comp == 3: 
-    specific_classes = [0,5] # class 0 and 5 partially overlap
-else:
-    specific_classes = None
+# Select class comparison
+## The main plots are based on class 0 vs 2:
+class_0_comp = [[0,2],[0,1],[0,4],[0,5],[0,3],[0,6],[0,7]] # NOTE: key to maintain this order
+class_1_comp = [[1,2],[1,4],[1,5],[1,3],[1,6],[1,7]] # NOTE: key to maintain this order
+all_classes_comp = class_0_comp + class_1_comp
+class_comp = 12
+specific_classes = all_classes_comp[class_comp]
+
 
 # Training variables
 epocs = 20
 batch_s = 50
-striatal_ln_rate = 3.5e-5#9e-6 #1e-5 #1e-3 #1e-5
+striatal_ln_rate = 2.5e-5#3.5e-5#9e-6 #1e-5 #1e-3 #1e-5
 
 for s in seeds:
     torch.manual_seed(s)
@@ -69,6 +68,9 @@ for s in seeds:
     tot_noCortex_rwd_acc = []
     tot_CS_p_rwd = []
     tot_CS_m_rwd = []
+    # Ensure baseline values are stored at trial zero
+    #tot_CS_p_rwd.append(0)
+    #tot_CS_m_rwd.append(0)
     for e in range(epocs):
         tot_striatal_rwd_loss, tot_striatal_noCortex_loss, CS_p_rwd, CS_m_rwd = trainingloop.train(e)
         tot_rwd_acc.append(tot_striatal_rwd_loss)
@@ -93,9 +95,9 @@ for s in seeds:
     ## ---------------------
 
     ## ------ Plot training curve -------
-    t = np.arange(1,len(tot_CS_p_rwd)+1)
-    plt.plot(t, tot_CS_p_rwd)
-    plt.plot(t, tot_CS_m_rwd)
+    #t = np.arange(1,len(tot_CS_p_rwd)+1)
+    #plt.plot(t, tot_CS_p_rwd)
+    #plt.plot(t, tot_CS_m_rwd)
     #plt.show()
 
     ## ------- Save files -------
@@ -103,7 +105,7 @@ for s in seeds:
     file_dir = os.path.dirname(os.path.abspath(__file__))
     file_dir = os.path.join(file_dir,'results','data')
 
-    data = f'VB_{dataset_name}_LickData_seed_{s}_class{class_comp}'
+    data = f'VB_{dataset_name}_LickData_seed_{s}_class_{specific_classes[0]}_vs_{specific_classes[1]}'
     if not ET_feedback:
         data += '_noET_'
     if not IT_feedback:    

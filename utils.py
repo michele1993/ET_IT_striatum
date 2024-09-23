@@ -90,12 +90,15 @@ def generate_20DGauss_data(n_training_samples, n_test_samples, specific_classes)
     # define correct label based on selected class number
     # so that uses same lebel system as mnist and cifar10
     if specific_classes is not None:
-        training_labels[training_labels==0] = specific_classes[0]
-        training_labels[training_labels==1] = specific_classes[1]
-        test_labels[test_labels==0] = specific_classes[0]
-        test_labels[test_labels==1] = specific_classes[1]
+        ## Need this to avoid new entries being over-written
+        old_training_labels = training_labels.clone()
+        old_test_labels = test_labels.clone()
+        ## ----------------
+        training_labels[old_training_labels==0] = specific_classes[0]
+        training_labels[old_training_labels==1] = specific_classes[1]
+        test_labels[old_test_labels==0] = specific_classes[0]
+        test_labels[old_test_labels==1] = specific_classes[1]
         
-
     # return training and test data in format suitable for dataloader, plus n_labels
     return list(zip(training_data, training_labels)), list(zip(test_data, test_labels)), len(means)
 
