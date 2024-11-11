@@ -1,7 +1,7 @@
 import torch
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from preTrain_S1.IT_NN import IT_NN
+from preTrain_IT_network.IT_NN import IT_NN
 from Value_lNN import Striatum_lNN
 import logging
 import matplotlib.pyplot as plt
