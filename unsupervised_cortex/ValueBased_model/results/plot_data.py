@@ -459,10 +459,17 @@ for c in class_plot_order:
     class_CSp_std.append(np.std(seed_CSp_val,axis=0)/ stde_norm)
     class_CSm_std.append(np.std(seed_CSm_val,axis=0)/ stde_norm)
 
+# Extract session indexes
 class_CSp_mean = np.array(class_CSp_mean)[:,indx_learning_stages]
 class_CSm_mean = np.array(class_CSm_mean)[:,indx_learning_stages]
 class_CSp_std = np.array(class_CSp_std)[:,indx_learning_stages]
 class_CSm_std = np.array(class_CSm_std)[:,indx_learning_stages]
+
+## Insert baseline at trial zero since saved results from averaged of first 100 trials
+class_CSp_mean[:,0] = 0 
+class_CSm_mean[:,0] = 0 
+class_CSp_std[:,0] = 0 
+class_CSm_std[:,0] = 0 
 
 # Plot CS+ vs CS-  across stimuli
 for j in range(3):
